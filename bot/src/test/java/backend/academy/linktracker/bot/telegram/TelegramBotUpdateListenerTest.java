@@ -12,6 +12,7 @@ import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.SetMyCommands;
 import com.pengrad.telegrambot.response.BaseResponse;
+import com.pengrad.telegrambot.response.SendResponse;
 import com.pengrad.telegrambot.utility.BotUtils;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +30,9 @@ class TelegramBotUpdateListenerTest {
 
     @Mock
     BaseResponse setMyCommandsResponse;
+
+    @Mock
+    SendResponse sendMessageResponse;
 
     TelegramProperties telegramProperties;
     TelegramBotUpdateListener updateListener;
@@ -84,6 +88,9 @@ class TelegramBotUpdateListenerTest {
     }
 
     private String processUpdateAndGetReply(String commandText) {
+        when(sendMessageResponse.isOk()).thenReturn(true);
+        when(telegramBot.execute(any(SendMessage.class))).thenReturn(sendMessageResponse);
+
         updateListener.start();
 
         ArgumentCaptor<UpdatesListener> updatesListenerCaptor = ArgumentCaptor.forClass(UpdatesListener.class);
