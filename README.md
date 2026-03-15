@@ -76,3 +76,4 @@ TELEGRAM_TOKEN=<ваш_telegram_bot_token>
 ## Полезно
 
 - Документация по шаблону: [HELP.md](./HELP.md)
+
