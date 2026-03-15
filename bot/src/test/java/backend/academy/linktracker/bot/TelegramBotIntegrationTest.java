@@ -1,6 +1,7 @@
 package backend.academy.linktracker.bot;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -14,12 +15,15 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import backend.academy.linktracker.bot.properties.TelegramProperties;
+import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
+import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.request.GetUpdates;
+import com.pengrad.telegrambot.request.SetMyCommands;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -46,6 +50,12 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
     @Autowired
     TelegramProperties telegramProperties;
+
+    @Autowired
+    TelegramCommandRegistry commandRegistry;
+
+    @Autowired
+    TelegramCommandProcessor commandProcessor;
 
     @AfterEach
     void clearUpdatesListener() {
@@ -142,5 +152,40 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
         verify(postRequestedFor(urlPathTemplate("/bot{token}/getUpdates"))
                 .withPathParam("token", equalTo(telegramProperties.getToken())));
+    }
+
+    @Test
+    void registersCommandsMenuFromRegistry() {
+        telegramBot.execute(new SetMyCommands(commandRegistry.menuCommands()));
+
+        verify(postRequestedFor(urlMatching("/bot[^/]+/setMyCommands"))
+                .withRequestBody(containing("start"))
+                .withRequestBody(containing("help")));
+    }
+
+    @Test
+    void startCommandReturnsGreetingContract() {
+        var response = commandProcessor.process("/start");
+
+        assertThat(response.reply())
+                .isEqualTo("Добро пожаловать! Используйте /help, чтобы посмотреть доступные команды.");
+    }
+
+    @Test
+    void helpCommandReturnsCommandsListContract() {
+        var response = commandProcessor.process("/help");
+
+        assertThat(response.reply())
+                .isEqualTo("""
+                        Доступные команды:
+                        /help - список команд
+                        /start - начало работы""");
+    }
+
+    @Test
+    void unknownCommandReturnsErrorContract() {
+        var response = commandProcessor.process("/unsupported");
+
+        assertThat(response.reply()).isEqualTo(TelegramCommandProcessor.UNKNOWN_REPLY);
     }
 }

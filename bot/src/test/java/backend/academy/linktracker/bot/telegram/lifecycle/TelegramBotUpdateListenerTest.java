@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.telegram;
+package backend.academy.linktracker.bot.telegram.lifecycle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -7,11 +7,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import backend.academy.linktracker.bot.properties.TelegramProperties;
+import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
+import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.request.SetMyCommands;
-import com.pengrad.telegrambot.response.BaseResponse;
 import com.pengrad.telegrambot.response.SendResponse;
 import com.pengrad.telegrambot.utility.BotUtils;
 import java.util.List;
@@ -29,68 +29,90 @@ class TelegramBotUpdateListenerTest {
     TelegramBot telegramBot;
 
     @Mock
-    BaseResponse setMyCommandsResponse;
+    TelegramCommandProcessor commandProcessor;
 
     @Mock
-    SendResponse sendMessageResponse;
-
-    TelegramProperties telegramProperties;
-    TelegramBotUpdateListener updateListener;
+    BotLogger botLogger;
 
     @BeforeEach
     void setUp() {
-        telegramProperties = new TelegramProperties();
+        TelegramProperties telegramProperties = new TelegramProperties();
         telegramProperties.setPollingEnabled(true);
+        telegramProperties.setUpdateListenerSleep(java.time.Duration.ofMillis(500));
 
-        when(setMyCommandsResponse.isOk()).thenReturn(true);
-        when(telegramBot.execute(any(SetMyCommands.class))).thenReturn(setMyCommandsResponse);
-
-        updateListener = new TelegramBotUpdateListener(telegramBot, telegramProperties, new TelegramCommandService());
+        updateListener = new TelegramBotUpdateListener(telegramBot, telegramProperties, commandProcessor, botLogger);
     }
 
+    TelegramBotUpdateListener updateListener;
+
     @Test
-    void startupRegistersCommandsAndStartsUpdatesPolling() {
+    void startupStartsUpdatesPollingAndLogs() {
         updateListener.start();
 
-        verify(telegramBot).execute(any(SetMyCommands.class));
         verify(telegramBot).setUpdatesListener(any(UpdatesListener.class));
+        verify(botLogger).logPollingStarted(500);
     }
 
     @Test
-    void startCommandSendsGreeting() {
+    void startCommandSendsReplyAndLogsProcessedCommand() {
+        when(commandProcessor.process("/start"))
+                .thenReturn(new TelegramCommandProcessor.CommandProcessingResult("reply", "start", "/start"));
+
+        SendResponse sendResponse = org.mockito.Mockito.mock(SendResponse.class);
+        when(sendResponse.isOk()).thenReturn(true);
+        when(telegramBot.execute(any(SendMessage.class))).thenReturn(sendResponse);
+
         String responseText = processUpdateAndGetReply("/start");
 
-        assertThat(responseText).isEqualTo(TelegramCommandService.START_REPLY);
+        assertThat(responseText).isEqualTo("reply");
+        verify(botLogger).logCommandProcessed(123L, "start", "/start", true);
     }
 
     @Test
-    void helpCommandSendsCommandsList() {
+    void helpCommandSendsReplyAndLogsProcessedCommand() {
+        when(commandProcessor.process("/help"))
+                .thenReturn(new TelegramCommandProcessor.CommandProcessingResult("help-reply", "help", "/help"));
+
+        SendResponse sendResponse = org.mockito.Mockito.mock(SendResponse.class);
+        when(sendResponse.isOk()).thenReturn(true);
+        when(telegramBot.execute(any(SendMessage.class))).thenReturn(sendResponse);
+
         String responseText = processUpdateAndGetReply("/help");
 
-        assertThat(responseText).isEqualTo(TelegramCommandService.HELP_REPLY);
+        assertThat(responseText).isEqualTo("help-reply");
+        verify(botLogger).logCommandProcessed(123L, "help", "/help", true);
     }
 
     @Test
-    void unknownCommandSendsError() {
-        String responseText = processUpdateAndGetReply("/something-else");
+    void unknownCommandWritesUnknownValueIntoLog() {
+        when(commandProcessor.process("hello"))
+                .thenReturn(new TelegramCommandProcessor.CommandProcessingResult(
+                        TelegramCommandProcessor.UNKNOWN_REPLY,
+                        TelegramCommandProcessor.UNKNOWN_COMMAND_NAME,
+                        "hello"));
 
-        assertThat(responseText).isEqualTo(TelegramCommandService.UNKNOWN_REPLY);
+        SendResponse sendResponse = org.mockito.Mockito.mock(SendResponse.class);
+        when(sendResponse.isOk()).thenReturn(true);
+        when(telegramBot.execute(any(SendMessage.class))).thenReturn(sendResponse);
+
+        processUpdateAndGetReply("hello");
+
+        verify(botLogger).logCommandProcessed(123L, "unknown", "hello", true);
     }
 
     @Test
     void disabledPollingSkipsListenerRegistration() {
+        TelegramProperties telegramProperties = new TelegramProperties();
         telegramProperties.setPollingEnabled(false);
+        updateListener = new TelegramBotUpdateListener(telegramBot, telegramProperties, commandProcessor, botLogger);
 
         updateListener.start();
 
-        verify(telegramBot).execute(any(SetMyCommands.class));
         verify(telegramBot, never()).setUpdatesListener(any(UpdatesListener.class));
+        verify(botLogger).logPollingDisabled();
     }
 
     private String processUpdateAndGetReply(String commandText) {
-        when(sendMessageResponse.isOk()).thenReturn(true);
-        when(telegramBot.execute(any(SendMessage.class))).thenReturn(sendMessageResponse);
-
         updateListener.start();
 
         ArgumentCaptor<UpdatesListener> updatesListenerCaptor = ArgumentCaptor.forClass(UpdatesListener.class);

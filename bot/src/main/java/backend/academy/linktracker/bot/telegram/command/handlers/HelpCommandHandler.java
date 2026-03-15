@@ -1,0 +1,30 @@
+package backend.academy.linktracker.bot.telegram.command.handlers;
+
+import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
+import backend.academy.linktracker.bot.telegram.command.TelegramCommandHandler;
+import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Component;
+
+/**
+ * Handles `/help` command by returning auto-generated command list.
+ */
+@Component
+@RequiredArgsConstructor
+@TelegramBotCommand(name = "help", description = "список команд")
+class HelpCommandHandler implements TelegramCommandHandler {
+
+    private final ObjectProvider<TelegramCommandRegistry> commandRegistryProvider;
+
+    /**
+     * Returns help text generated from registered commands.
+     *
+     * @param messageText raw incoming message text
+     * @return auto-generated help message
+     */
+    @Override
+    public String handle(String messageText) {
+        return commandRegistryProvider.getObject().helpMessage();
+    }
+}
