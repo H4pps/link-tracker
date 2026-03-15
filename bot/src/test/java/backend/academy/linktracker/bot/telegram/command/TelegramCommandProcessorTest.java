@@ -2,8 +2,8 @@ package backend.academy.linktracker.bot.telegram.command;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import backend.academy.linktracker.bot.telegram.command.handlers.TelegramCommandHandler;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TelegramCommandProcessorTest {
