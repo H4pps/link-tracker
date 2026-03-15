@@ -175,8 +175,7 @@ class TelegramBotIntegrationTest implements WithAssertions {
     void helpCommandReturnsCommandsListContract() {
         var response = commandProcessor.process("/help");
 
-        assertThat(response.reply())
-                .isEqualTo("""
+        assertThat(response.reply()).isEqualTo("""
                         Доступные команды:
                         /help - список команд
                         /start - начало работы""");

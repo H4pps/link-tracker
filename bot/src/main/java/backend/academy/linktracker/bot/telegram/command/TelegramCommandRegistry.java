@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * Stores Telegram command handlers and exposes derived menu/help representations.
  */
 @Component
-public class TelegramCommandRegistry {
+public final class TelegramCommandRegistry {
 
     private static final String HELP_HEADER = "Доступные команды:";
 
