@@ -1,5 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command;
 
+import backend.academy.linktracker.bot.telegram.command.handlers.TelegramCommandHandler;
 import com.pengrad.telegrambot.model.BotCommand;
 import java.util.ArrayList;
 import java.util.Comparator;

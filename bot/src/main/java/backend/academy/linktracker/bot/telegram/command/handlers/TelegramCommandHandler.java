@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.telegram.command;
+package backend.academy.linktracker.bot.telegram.command.handlers;
 
 /**
  * Contract for a single Telegram command handler.

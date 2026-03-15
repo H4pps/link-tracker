@@ -1,7 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
-import backend.academy.linktracker.bot.telegram.command.TelegramCommandHandler;
 import org.springframework.stereotype.Component;
 
 /**

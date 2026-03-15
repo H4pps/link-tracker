@@ -1,7 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
-import backend.academy.linktracker.bot.telegram.command.TelegramCommandHandler;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
