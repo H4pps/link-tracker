@@ -4,8 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.BotCommand;
 import com.pengrad.telegrambot.request.SetMyCommands;

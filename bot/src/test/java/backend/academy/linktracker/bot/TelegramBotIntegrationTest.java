@@ -160,7 +160,10 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
         verify(postRequestedFor(urlMatching("/bot[^/]+/setMyCommands"))
                 .withRequestBody(containing("start"))
-                .withRequestBody(containing("help")));
+                .withRequestBody(containing("help"))
+                .withRequestBody(containing("track"))
+                .withRequestBody(containing("untrack"))
+                .withRequestBody(containing("list")));
     }
 
     @Test
@@ -178,7 +181,32 @@ class TelegramBotIntegrationTest implements WithAssertions {
         assertThat(response.reply()).isEqualTo("""
                         Доступные команды:
                         /help - список команд
-                        /start - начало работы""");
+                        /list - показать отслеживаемые ссылки
+                        /start - начало работы
+                        /track - начать отслеживание ссылки
+                        /untrack - прекратить отслеживание ссылки""");
+    }
+
+    @Test
+    void trackCommandReturnsDialogStartPrompt() {
+        var response = commandProcessor.process("/track");
+
+        assertThat(response.reply())
+                .isEqualTo("Введите ссылку, которую хотите отслеживать. Для отмены используйте /cancel.");
+    }
+
+    @Test
+    void untrackCommandWithoutArgumentReturnsUsageHint() {
+        var response = commandProcessor.process("/untrack");
+
+        assertThat(response.reply()).isEqualTo("Использование: /untrack <url>");
+    }
+
+    @Test
+    void listCommandReturnsEmptyStateStub() {
+        var response = commandProcessor.process("/list");
+
+        assertThat(response.reply()).isEqualTo("Список отслеживаемых ссылок пока пуст.");
     }
 
     @Test

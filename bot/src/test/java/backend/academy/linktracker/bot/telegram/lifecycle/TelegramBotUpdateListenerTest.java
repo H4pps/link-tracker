@@ -6,9 +6,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.TelegramProperties;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.request.SendMessage;
