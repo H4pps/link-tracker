@@ -1,8 +1,8 @@
 package backend.academy.linktracker.bot.telegram.lifecycle;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.TelegramProperties;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Update;

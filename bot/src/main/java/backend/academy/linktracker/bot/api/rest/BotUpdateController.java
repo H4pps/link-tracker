@@ -3,7 +3,7 @@ package backend.academy.linktracker.bot.api.rest;
 import backend.academy.linktracker.bot.api.rest.dto.LinkUpdateRequest;
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
+import backend.academy.linktracker.bot.logging.BotLogger;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
