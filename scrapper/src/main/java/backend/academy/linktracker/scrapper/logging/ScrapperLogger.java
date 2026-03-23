@@ -71,4 +71,52 @@ public class ScrapperLogger {
                 .addKeyValue("url", url)
                 .log("Scrapper use case accepted request");
     }
+
+    /**
+     * Logs external source fetch failure.
+     *
+     * @param source source identifier
+     * @param url tracked URL
+     * @param errorCode error code
+     */
+    public void logExternalFetchFailed(String source, String url, String errorCode) {
+        LOGGER.atWarn()
+                .addKeyValue("source", source)
+                .addKeyValue("url", url)
+                .addKeyValue("errorCode", errorCode)
+                .log("External source fetch failed");
+    }
+
+    /**
+     * Logs scheduler processing result per tracked URL.
+     *
+     * @param url tracked URL
+     * @param changed true when update is detected
+     */
+    public void logSchedulerProcessed(String url, boolean changed) {
+        LOGGER.atInfo().addKeyValue("url", url).addKeyValue("changed", changed).log("Scheduler processed tracked URL");
+    }
+
+    /**
+     * Logs scheduler notification attempt to bot.
+     *
+     * @param url tracked URL
+     * @param chatCount number of chats in update
+     */
+    public void logSchedulerNotifyAttempt(String url, int chatCount) {
+        LOGGER.atInfo()
+                .addKeyValue("url", url)
+                .addKeyValue("chatCount", chatCount)
+                .log("Sending update notification to bot");
+    }
+
+    /**
+     * Logs scheduler notification result.
+     *
+     * @param url tracked URL
+     * @param sent whether notification succeeded
+     */
+    public void logSchedulerNotifyResult(String url, boolean sent) {
+        LOGGER.atInfo().addKeyValue("url", url).addKeyValue("sent", sent).log("Bot notification processed");
+    }
 }
