@@ -253,6 +253,7 @@
                     <version>${protobuf-maven-plugin.version}</version>
                     <configuration>
                         <protoc>${protobuf-java.version}</protoc>
+                        <sanctionedExecutablePath>${java.io.tmpdir}/protobuf-maven-plugin-executables</sanctionedExecutablePath>
                         <binaryMavenPlugins>
                             <binaryMavenPlugin>
                                 <groupId>io.grpc</groupId>
