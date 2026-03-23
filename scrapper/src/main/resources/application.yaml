@@ -8,8 +8,15 @@ spring:
     import: optional:file:.env[.properties],optional:file:scrapper/.env[.properties]
 
 app:
+  grpc:
+    server:
+      port: ${APP_SCRAPPER_GRPC_SERVER_PORT:9091}
   bot:
+    mode: ${APP_BOT_MODE:grpc}
     base-url: ${APP_BOT_BASE_URL:http://localhost:8080}
+    grpc-host: ${APP_BOT_GRPC_HOST:localhost}
+    grpc-port: ${APP_BOT_GRPC_PORT:9090}
+    grpc-deadline: ${APP_BOT_GRPC_DEADLINE:3s}
     connect-timeout: ${APP_BOT_CONNECT_TIMEOUT:2s}
     read-timeout: ${APP_BOT_READ_TIMEOUT:5s}
   scheduler:
