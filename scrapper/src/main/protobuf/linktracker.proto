@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package linktracker.grpc;
+
+option java_package = "backend.academy.linktracker.grpc";
+option java_multiple_files = true;
+option java_outer_classname = "LinkTrackerGrpcProto";
+
+message Ack {
+  bool accepted = 1;
+}
+
+message ChatRequest {
+  int64 chat_id = 1;
+}
+
+message ListLinksRequest {
+  int64 chat_id = 1;
+}
+
+message AddLinkRequest {
+  int64 chat_id = 1;
+  string url = 2;
+  repeated string tags = 3;
+  repeated string filters = 4;
+}
+
+message RemoveLinkRequest {
+  int64 chat_id = 1;
+  string url = 2;
+}
+
+message Link {
+  int64 id = 1;
+  string url = 2;
+  repeated string tags = 3;
+  repeated string filters = 4;
+}
+
+message ListLinksResponse {
+  repeated Link links = 1;
+  int32 size = 2;
+}
+
+message LinkUpdateRequest {
+  int64 id = 1;
+  string url = 2;
+  string description = 3;
+  repeated int64 tg_chat_ids = 4;
+}
+
+service ScrapperService {
+  rpc RegisterChat(ChatRequest) returns (Ack);
+  rpc DeleteChat(ChatRequest) returns (Ack);
+  rpc ListLinks(ListLinksRequest) returns (ListLinksResponse);
+  rpc AddLink(AddLinkRequest) returns (Link);
+  rpc RemoveLink(RemoveLinkRequest) returns (Link);
+}
+
+service BotService {
+  rpc SendUpdate(LinkUpdateRequest) returns (Ack);
+}
