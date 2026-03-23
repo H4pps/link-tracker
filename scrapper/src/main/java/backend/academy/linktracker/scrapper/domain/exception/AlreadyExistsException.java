@@ -5,8 +5,6 @@ package backend.academy.linktracker.scrapper.domain.exception;
  */
 public class AlreadyExistsException extends RuntimeException {
 
-    private static final long serialVersionUID = 1L;
-
     /**
      * Creates an exception with message.
      *
