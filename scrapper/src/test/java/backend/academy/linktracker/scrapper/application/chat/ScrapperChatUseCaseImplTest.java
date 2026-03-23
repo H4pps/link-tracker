@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
-import backend.academy.linktracker.scrapper.infrastructure.memory.ScrapperInMemoryState;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,25 +17,26 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class InMemoryScrapperChatUseCaseTest {
+class ScrapperChatUseCaseImplTest {
 
     @Mock
     private ScrapperLogger scrapperLogger;
 
-    private ScrapperInMemoryState state;
-    private InMemoryScrapperChatUseCase useCase;
+    private ScrapperChatRepository chatRepository;
+    private ScrapperChatUseCaseImpl useCase;
 
     @BeforeEach
     void setUp() {
-        state = new ScrapperInMemoryState();
-        useCase = new InMemoryScrapperChatUseCase(state, scrapperLogger);
+        InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
+        chatRepository = new InMemoryScrapperChatRepository(storage);
+        useCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
     }
 
     @Test
     void registerChatStoresNewChat() {
         useCase.registerChat(10L);
 
-        assertTrue(state.isChatRegistered(10L));
+        assertTrue(chatRepository.exists(10L));
     }
 
     @Test
@@ -49,7 +52,7 @@ class InMemoryScrapperChatUseCaseTest {
 
         useCase.deleteChat(10L);
 
-        assertFalse(state.isChatRegistered(10L));
+        assertFalse(chatRepository.exists(10L));
     }
 
     @Test

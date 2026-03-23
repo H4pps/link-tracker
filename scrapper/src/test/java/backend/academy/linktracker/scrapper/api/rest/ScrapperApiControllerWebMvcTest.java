@@ -6,11 +6,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import backend.academy.linktracker.scrapper.application.chat.InMemoryScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
-import backend.academy.linktracker.scrapper.application.link.InMemoryScrapperLinkUseCase;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
-import backend.academy.linktracker.scrapper.infrastructure.memory.ScrapperInMemoryState;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCaseImpl;
+import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,9 +39,11 @@ class ScrapperApiControllerWebMvcTest {
 
     @BeforeEach
     void setUp() {
-        ScrapperInMemoryState state = new ScrapperInMemoryState();
-        scrapperChatUseCase = new InMemoryScrapperChatUseCase(state, scrapperLogger);
-        scrapperLinkUseCase = new InMemoryScrapperLinkUseCase(state, scrapperLogger);
+        InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
+        ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
+        ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
+        scrapperChatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
+        scrapperLinkUseCase = new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();

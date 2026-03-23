@@ -1,24 +1,25 @@
 package backend.academy.linktracker.scrapper.application.link;
 
+import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
-import backend.academy.linktracker.scrapper.infrastructure.memory.ScrapperInMemoryState;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ConcurrentMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * In-memory implementation of link management use case.
+ * Repository-backed implementation of link management use case.
  */
 @Component
 @RequiredArgsConstructor
-public class InMemoryScrapperLinkUseCase implements ScrapperLinkUseCase {
+public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
 
-    private final ScrapperInMemoryState state;
+    private final ScrapperChatRepository chatRepository;
+    private final ScrapperLinkRepository linkRepository;
     private final ScrapperLogger scrapperLogger;
 
     /**
@@ -30,7 +31,8 @@ public class InMemoryScrapperLinkUseCase implements ScrapperLinkUseCase {
     @Override
     public List<LinkView> listLinks(long chatId) {
         scrapperLogger.logUseCaseAccepted("list-links", chatId, null);
-        return subscriptionsForExistingChat(chatId).values().stream()
+        requireChatExists(chatId);
+        return linkRepository.findAllByChatId(chatId).stream()
                 .sorted(Comparator.comparingLong(TrackedSubscription::id))
                 .map(this::toLinkView)
                 .toList();
@@ -46,15 +48,13 @@ public class InMemoryScrapperLinkUseCase implements ScrapperLinkUseCase {
     @Override
     public LinkView addLink(long chatId, AddLinkCommand command) {
         scrapperLogger.logUseCaseAccepted("add-link", chatId, command.link());
-        ConcurrentMap<String, TrackedSubscription> subscriptions = subscriptionsForExistingChat(chatId);
-        TrackedSubscription created =
-                new TrackedSubscription(state.nextLinkId(), command.link(), command.tags(), command.filters());
-
-        TrackedSubscription existing = subscriptions.putIfAbsent(command.link(), created);
-        if (existing != null) {
+        requireChatExists(chatId);
+        TrackedSubscription created = linkRepository
+                .addIfAbsent(chatId, command.link(), command.tags(), command.filters())
+                .orElse(null);
+        if (created == null) {
             throw new AlreadyExistsException("Link already tracked for chat: " + command.link());
         }
-
         return toLinkView(created);
     }
 
@@ -68,23 +68,19 @@ public class InMemoryScrapperLinkUseCase implements ScrapperLinkUseCase {
     @Override
     public LinkView removeLink(long chatId, RemoveLinkCommand command) {
         scrapperLogger.logUseCaseAccepted("remove-link", chatId, command.link());
-        TrackedSubscription removed = subscriptionsForExistingChat(chatId).remove(command.link());
+        requireChatExists(chatId);
+        TrackedSubscription removed =
+                linkRepository.remove(chatId, command.link()).orElse(null);
         if (removed == null) {
             throw new NotFoundException("Link not found for chat: " + command.link());
         }
         return toLinkView(removed);
     }
 
-    private ConcurrentMap<String, TrackedSubscription> subscriptionsForExistingChat(long chatId) {
-        if (!state.isChatRegistered(chatId)) {
+    private void requireChatExists(long chatId) {
+        if (!chatRepository.exists(chatId)) {
             throw new NotFoundException("Chat not found: " + chatId);
         }
-
-        ConcurrentMap<String, TrackedSubscription> subscriptions = state.subscriptionsForChat(chatId);
-        if (subscriptions == null) {
-            throw new NotFoundException("Chat not found: " + chatId);
-        }
-        return subscriptions;
     }
 
     private LinkView toLinkView(TrackedSubscription subscription) {

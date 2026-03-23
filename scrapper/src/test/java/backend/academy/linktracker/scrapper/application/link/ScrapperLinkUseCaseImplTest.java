@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import backend.academy.linktracker.scrapper.application.chat.InMemoryScrapperChatUseCase;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
+import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
-import backend.academy.linktracker.scrapper.infrastructure.memory.ScrapperInMemoryState;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,20 +21,21 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class InMemoryScrapperLinkUseCaseTest {
+class ScrapperLinkUseCaseImplTest {
 
     @Mock
     private ScrapperLogger scrapperLogger;
 
-    private ScrapperInMemoryState state;
-    private InMemoryScrapperLinkUseCase linkUseCase;
-    private InMemoryScrapperChatUseCase chatUseCase;
+    private ScrapperLinkUseCaseImpl linkUseCase;
+    private ScrapperChatUseCaseImpl chatUseCase;
 
     @BeforeEach
     void setUp() {
-        state = new ScrapperInMemoryState();
-        linkUseCase = new InMemoryScrapperLinkUseCase(state, scrapperLogger);
-        chatUseCase = new InMemoryScrapperChatUseCase(state, scrapperLogger);
+        InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
+        ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
+        ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
+        linkUseCase = new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
+        chatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
     }
 
     @Test

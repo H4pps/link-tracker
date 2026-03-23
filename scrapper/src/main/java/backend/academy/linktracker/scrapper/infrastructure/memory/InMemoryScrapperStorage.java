@@ -8,10 +8,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Component;
 
 /**
- * Shared in-memory state for scrapper use cases.
+ * Shared in-memory storage used by in-memory scrapper repositories.
  */
 @Component
-public class ScrapperInMemoryState {
+public class InMemoryScrapperStorage {
 
     private final Set<Long> registeredChats = ConcurrentHashMap.newKeySet();
     private final ConcurrentMap<Long, ConcurrentMap<String, TrackedSubscription>> subscriptionsByChat =
@@ -24,7 +24,7 @@ public class ScrapperInMemoryState {
      * @param chatId telegram chat identifier
      * @return true when chat was added, false when it already existed
      */
-    public boolean registerChat(long chatId) {
+    boolean registerChat(long chatId) {
         boolean added = registeredChats.add(chatId);
         if (added) {
             subscriptionsByChat.putIfAbsent(chatId, new ConcurrentHashMap<>());
@@ -38,7 +38,7 @@ public class ScrapperInMemoryState {
      * @param chatId telegram chat identifier
      * @return true when chat existed and was removed
      */
-    public boolean deleteChat(long chatId) {
+    boolean deleteChat(long chatId) {
         boolean removed = registeredChats.remove(chatId);
         if (removed) {
             subscriptionsByChat.remove(chatId);
@@ -52,7 +52,7 @@ public class ScrapperInMemoryState {
      * @param chatId telegram chat identifier
      * @return true when chat is known to scrapper
      */
-    public boolean isChatRegistered(long chatId) {
+    boolean isChatRegistered(long chatId) {
         return registeredChats.contains(chatId);
     }
 
@@ -62,7 +62,7 @@ public class ScrapperInMemoryState {
      * @param chatId telegram chat identifier
      * @return concurrent map for chat or null when chat has no state
      */
-    public ConcurrentMap<String, TrackedSubscription> subscriptionsForChat(long chatId) {
+    ConcurrentMap<String, TrackedSubscription> subscriptionsForChat(long chatId) {
         return subscriptionsByChat.get(chatId);
     }
 
@@ -71,7 +71,7 @@ public class ScrapperInMemoryState {
      *
      * @return positive link id
      */
-    public long nextLinkId() {
+    long nextLinkId() {
         return linkIdSequence.incrementAndGet();
     }
 }
