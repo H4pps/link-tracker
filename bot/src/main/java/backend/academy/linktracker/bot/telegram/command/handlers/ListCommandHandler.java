@@ -1,51 +1,70 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
+import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkView;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
+import java.util.List;
+import java.util.Locale;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * Handles `/list` command.
  */
 @Component
+@RequiredArgsConstructor
 @TelegramBotCommand(name = "list", description = "показать отслеживаемые ссылки")
 class ListCommandHandler implements TelegramCommandHandler {
 
     static final String EMPTY_LIST_REPLY = "Список отслеживаемых ссылок пока пуст.";
     static final String FILTERED_EMPTY_LIST_REPLY_TEMPLATE = "Список отслеживаемых ссылок с тегом \"%s\" пока пуст.";
+    private static final String CHAT_NOT_REGISTERED_REPLY = "Чат не зарегистрирован. Используйте /start.";
+    private static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
 
-    private static final String WHITESPACE_REGEX = "\\s+";
-    private static final int PARTS_LIMIT = 2;
+    private final ScrapperGateway scrapperGateway;
 
     /**
      * Returns deterministic empty-state response for list command.
      *
-     * @param messageText raw incoming message text
-     * @return empty list response with optional tag echo
+     * @param context command processing context
+     * @return formatted list response with optional tag filtering
      */
     @Override
-    public String handle(String messageText) {
-        String tag = extractArgument(messageText);
-        if (tag.isBlank()) {
-            return EMPTY_LIST_REPLY;
+    public String handle(CommandContext context) {
+        String tag = context.parsedCommand().argument().strip();
+        try {
+            List<ScrapperLinkView> links = scrapperGateway.listLinks(context.chatId());
+            if (!tag.isBlank()) {
+                String normalizedTag = tag.toLowerCase(Locale.ROOT);
+                links = links.stream()
+                        .filter(link -> link.tags().stream()
+                                .map(value -> value.toLowerCase(Locale.ROOT))
+                                .anyMatch(normalizedTag::equals))
+                        .toList();
+            }
+            if (links.isEmpty()) {
+                return tag.isBlank() ? EMPTY_LIST_REPLY : FILTERED_EMPTY_LIST_REPLY_TEMPLATE.formatted(tag);
+            }
+            return formatLinks(links);
+        } catch (ScrapperNotFoundException exception) {
+            return CHAT_NOT_REGISTERED_REPLY;
+        } catch (ScrapperUnavailableException exception) {
+            return SCRAPPER_UNAVAILABLE_REPLY;
         }
-        return FILTERED_EMPTY_LIST_REPLY_TEMPLATE.formatted(tag);
     }
 
-    /**
-     * Extracts optional tag argument from command message.
-     *
-     * @param messageText raw incoming message text
-     * @return tag value or empty string
-     */
-    private String extractArgument(String messageText) {
-        if (messageText == null || messageText.isBlank()) {
-            return "";
+    private String formatLinks(List<ScrapperLinkView> links) {
+        StringBuilder builder = new StringBuilder("Отслеживаемые ссылки:");
+        for (int index = 0; index < links.size(); index++) {
+            ScrapperLinkView link = links.get(index);
+            builder.append(System.lineSeparator())
+                    .append(index + 1)
+                    .append(". ")
+                    .append(link.url());
         }
-
-        String[] parts = messageText.strip().split(WHITESPACE_REGEX, PARTS_LIMIT);
-        if (parts.length < PARTS_LIMIT) {
-            return "";
-        }
-        return parts[1].strip();
+        return builder.toString();
     }
 }

@@ -5,5 +5,6 @@ package backend.academy.linktracker.bot.telegram.command;
  *
  * @param inputCommand raw first token from the message text
  * @param normalizedCommand normalized command name used for routing
+ * @param argument optional argument payload after the first token
  */
-record ParsedCommand(String inputCommand, String normalizedCommand) {}
+public record ParsedCommand(String inputCommand, String normalizedCommand, String argument) {}

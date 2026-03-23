@@ -14,6 +14,7 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEqualTo("/help");
         assertThat(parsedCommand.normalizedCommand()).isEqualTo("help");
+        assertThat(parsedCommand.argument()).isEmpty();
     }
 
     @Test
@@ -22,6 +23,7 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEqualTo("/help@linktrackerbot");
         assertThat(parsedCommand.normalizedCommand()).isEqualTo("help");
+        assertThat(parsedCommand.argument()).isEmpty();
     }
 
     @Test
@@ -30,6 +32,7 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEqualTo("/help");
         assertThat(parsedCommand.normalizedCommand()).isEqualTo("help");
+        assertThat(parsedCommand.argument()).isEqualTo("extra args");
     }
 
     @Test
@@ -38,6 +41,7 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEqualTo("hello");
         assertThat(parsedCommand.normalizedCommand()).isEqualTo("hello");
+        assertThat(parsedCommand.argument()).isEqualTo("there");
     }
 
     @Test
@@ -46,6 +50,7 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEmpty();
         assertThat(parsedCommand.normalizedCommand()).isEmpty();
+        assertThat(parsedCommand.argument()).isEmpty();
     }
 
     @Test
@@ -54,5 +59,6 @@ class CommandTextParserTest {
 
         assertThat(parsedCommand.inputCommand()).isEmpty();
         assertThat(parsedCommand.normalizedCommand()).isEmpty();
+        assertThat(parsedCommand.argument()).isEmpty();
     }
 }

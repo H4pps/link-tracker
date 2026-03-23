@@ -70,9 +70,9 @@ class TelegramBotUpdateListener {
             return;
         }
 
-        TelegramCommandProcessor.CommandProcessingResult processingResult = commandProcessor.process(message.text());
-
         long chatId = message.chat().id();
+        TelegramCommandProcessor.CommandProcessingResult processingResult =
+                commandProcessor.process(chatId, message.text());
         var response = telegramBot.execute(new SendMessage(chatId, processingResult.reply()));
         botLogger.logCommandProcessed(
                 chatId, processingResult.commandForLog(), processingResult.inputCommand(), response.isOk());

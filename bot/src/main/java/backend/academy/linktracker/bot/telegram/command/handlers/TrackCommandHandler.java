@@ -1,25 +1,29 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
+import backend.academy.linktracker.bot.application.track.TrackDialogService;
+import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * Handles `/track` command entry point.
  */
 @Component
+@RequiredArgsConstructor
 @TelegramBotCommand(name = "track", description = "начать отслеживание ссылки")
 class TrackCommandHandler implements TelegramCommandHandler {
 
-    static final String TRACK_REPLY = "Введите ссылку, которую хотите отслеживать. Для отмены используйте /cancel.";
+    private final TrackDialogService trackDialogService;
 
     /**
      * Returns prompt for starting link tracking dialog.
      *
-     * @param messageText raw incoming message text
+     * @param context command processing context
      * @return dialog prompt
      */
     @Override
-    public String handle(String messageText) {
-        return TRACK_REPLY;
+    public String handle(CommandContext context) {
+        return trackDialogService.start(context.chatId());
     }
 }
