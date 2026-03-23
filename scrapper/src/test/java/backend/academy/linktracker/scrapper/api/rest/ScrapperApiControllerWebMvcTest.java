@@ -212,6 +212,61 @@ class ScrapperApiControllerWebMvcTest {
     }
 
     @Test
+    void removingLinkFromUnknownChatDoesNotAffectExistingChatLinks() throws Exception {
+        mockMvc.perform(post("/tg-chat/1")).andExpect(status().isOk());
+
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {
+                                  "link": "https://github.com/octocat/Hello-World",
+                                  "tags": ["work"],
+                                  "filters": ["f1"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(delete("/links")
+                        .header("Tg-Chat-Id", 999)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {
+                                  "link": "https://github.com/octocat/Hello-World"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+        mockMvc.perform(get("/links").header("Tg-Chat-Id", 1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(1))
+                .andExpect(jsonPath("$.links[0].url").value("https://github.com/octocat/Hello-World"));
+    }
+
+    @Test
+    void addLinkReturnsNotFoundWhenChatWasDeleted() throws Exception {
+        mockMvc.perform(post("/tg-chat/1")).andExpect(status().isOk());
+        mockMvc.perform(delete("/tg-chat/1")).andExpect(status().isOk());
+
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {
+                                  "link": "https://github.com/octocat/Hello-World",
+                                  "tags": ["work"],
+                                  "filters": ["f1"]
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
     void sameLinkCanBeTrackedByDifferentChats() throws Exception {
         mockMvc.perform(post("/tg-chat/1")).andExpect(status().isOk());
         mockMvc.perform(post("/tg-chat/2")).andExpect(status().isOk());
