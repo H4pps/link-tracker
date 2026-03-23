@@ -197,4 +197,16 @@ public class BotLogger {
                 .addKeyValue("sent", sent)
                 .log("Telegram update notification processed");
     }
+
+    /**
+     * Logs embedded bot gRPC server startup event.
+     *
+     * @param port gRPC server port
+     */
+    public void logGrpcServerStarted(int port) {
+        LOGGER.atInfo()
+                .addKeyValue("transport", "grpc")
+                .addKeyValue("port", port)
+                .log("Bot gRPC server started");
+    }
 }
