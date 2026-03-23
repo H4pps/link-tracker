@@ -13,22 +13,19 @@ import org.springframework.boot.convert.DurationUnit;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Typed properties for GitHub API client.
+ * Typed properties for scrapper-to-bot HTTP notifications.
  */
-@ConfigurationProperties(prefix = "app.github")
+@ConfigurationProperties(prefix = "app.bot")
 @Validated
 @Getter
 @Setter
 @EqualsAndHashCode
 @NoArgsConstructor
-public class GithubProperties {
+public class BotProperties {
 
     @NotEmpty
     @URL
-    private String baseUrl = "https://api.github.com";
-
-    @NotEmpty
-    private String token;
+    private String baseUrl = "http://localhost:8080";
 
     @DurationUnit(ChronoUnit.MILLIS)
     private Duration connectTimeout = Duration.ofSeconds(2);
