@@ -168,7 +168,9 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
     @Test
     void startCommandReturnsGreetingContract() {
-        var response = commandProcessor.process("/start");
+        stubFor(post(urlMatching("/tg-chat/123")).willReturn(aResponse().withStatus(200)));
+
+        var response = commandProcessor.process(123L, "/start");
 
         assertThat(response.reply())
                 .isEqualTo("Добро пожаловать! Используйте /help, чтобы посмотреть доступные команды.");
@@ -176,7 +178,7 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
     @Test
     void helpCommandReturnsCommandsListContract() {
-        var response = commandProcessor.process("/help");
+        var response = commandProcessor.process(123L, "/help");
 
         assertThat(response.reply()).isEqualTo("""
                         Доступные команды:
@@ -189,7 +191,7 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
     @Test
     void trackCommandReturnsDialogStartPrompt() {
-        var response = commandProcessor.process("/track");
+        var response = commandProcessor.process(123L, "/track");
 
         assertThat(response.reply())
                 .isEqualTo("Введите ссылку, которую хотите отслеживать. Для отмены используйте /cancel.");
@@ -197,21 +199,34 @@ class TelegramBotIntegrationTest implements WithAssertions {
 
     @Test
     void untrackCommandWithoutArgumentReturnsUsageHint() {
-        var response = commandProcessor.process("/untrack");
+        var response = commandProcessor.process(123L, "/untrack");
 
         assertThat(response.reply()).isEqualTo("Использование: /untrack <url>");
     }
 
     @Test
     void listCommandReturnsEmptyStateStub() {
-        var response = commandProcessor.process("/list");
+        stubFor(post(urlMatching("/tg-chat/123")).willReturn(aResponse().withStatus(200)));
+        stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlMatching("/links"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                        .withBody("""
+                                {
+                                  "links": [],
+                                  "size": 0
+                                }
+                                """)));
+
+        commandProcessor.process(123L, "/start");
+        var response = commandProcessor.process(123L, "/list");
 
         assertThat(response.reply()).isEqualTo("Список отслеживаемых ссылок пока пуст.");
     }
 
     @Test
     void unknownCommandReturnsErrorContract() {
-        var response = commandProcessor.process("/unsupported");
+        var response = commandProcessor.process(123L, "/unsupported");
 
         assertThat(response.reply()).isEqualTo(TelegramCommandProcessor.UNKNOWN_REPLY);
     }
