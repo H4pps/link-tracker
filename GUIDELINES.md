@@ -47,3 +47,12 @@ APP_TELEGRAM_URL=http://127.0.0.1:65535/bot \
 ./mvnw -pl bot -am spring-boot:run
 ```
 
+## Проверка интеграционных тестов
+
+Интеграционные (container E2E) тесты запускаются отдельным профилем:
+
+```bash
+./mvnw -pl bot,scrapper -am -Pe2e verify
+```
+
+Примечание: для этого запуска должен быть доступен Docker daemon.

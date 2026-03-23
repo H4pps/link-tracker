@@ -312,6 +312,9 @@
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
                         <outputDirectory>${project.reporting.outputDirectory}/pmd</outputDirectory>
+                        <excludeRoots>
+                            <excludeRoot>${project.build.directory}/generated-sources/protobuf</excludeRoot>
+                        </excludeRoots>
                         <rulesets>
                             <ruleset>pmd.xml</ruleset>
                         </rulesets>
