@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: scrapper
+  config:
+    import: optional:file:.env[.properties],optional:file:scrapper/.env[.properties]
 
 app:
   stackoverflow:

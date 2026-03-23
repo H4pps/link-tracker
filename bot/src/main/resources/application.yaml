@@ -9,8 +9,8 @@ spring:
 
 app:
   telegram:
-    url: https://api.telegram.org/bot
+    url: ${APP_TELEGRAM_URL:https://api.telegram.org/bot}
     token: ${TELEGRAM_TOKEN} # Use env variable. DO NOT KEEP TOKEN HERE
-    update-listener-sleep: 1s
-    polling-enabled: true
-    debug: false
+    update-listener-sleep: ${APP_TELEGRAM_UPDATE_LISTENER_SLEEP:1s}
+    polling-enabled: ${APP_TELEGRAM_POLLING_ENABLED:true}
+    debug: ${APP_TELEGRAM_DEBUG:false}
