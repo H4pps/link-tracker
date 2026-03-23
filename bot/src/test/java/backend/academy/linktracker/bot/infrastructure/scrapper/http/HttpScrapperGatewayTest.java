@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.infrastructure.scrapper;
+package backend.academy.linktracker.bot.infrastructure.scrapper.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;

@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.infrastructure.scrapper;
+package backend.academy.linktracker.bot.infrastructure.scrapper.http;
 
 import backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
@@ -6,13 +6,14 @@ import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkView;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
-import backend.academy.linktracker.bot.infrastructure.scrapper.dto.ScrapperAddLinkRequest;
-import backend.academy.linktracker.bot.infrastructure.scrapper.dto.ScrapperLinkResponse;
-import backend.academy.linktracker.bot.infrastructure.scrapper.dto.ScrapperListLinksResponse;
-import backend.academy.linktracker.bot.infrastructure.scrapper.dto.ScrapperRemoveLinkRequest;
+import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperAddLinkRequest;
+import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperLinkResponse;
+import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperListLinksResponse;
+import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperRemoveLinkRequest;
 import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.ScrapperProperties;
 import java.util.List;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
@@ -23,6 +24,7 @@ import org.springframework.web.client.RestClient;
  * HTTP implementation of bot-side scrapper gateway using {@link RestClient}.
  */
 @Component
+@ConditionalOnProperty(prefix = "app.scrapper", name = "mode", havingValue = "http")
 public class HttpScrapperGateway implements ScrapperGateway {
 
     private static final String CHAT_ENDPOINT_TEMPLATE = "/tg-chat/{id}";
