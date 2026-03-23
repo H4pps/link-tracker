@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot.dto;
+package backend.academy.linktracker.scrapper.infrastructure.bot.http.dto;
 
 import java.util.List;
 

@@ -1,11 +1,12 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot;
+package backend.academy.linktracker.scrapper.infrastructure.bot.http;
 
 import backend.academy.linktracker.scrapper.application.update.BotNotificationSender;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateNotification;
-import backend.academy.linktracker.scrapper.infrastructure.bot.dto.BotLinkUpdateRequest;
+import backend.academy.linktracker.scrapper.infrastructure.bot.http.dto.BotLinkUpdateRequest;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.BotProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -15,6 +16,7 @@ import org.springframework.web.client.RestClient;
  */
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "app.bot", name = "mode", havingValue = "http")
 public class HttpBotNotificationSender implements BotNotificationSender {
 
     private static final String UPDATES_ENDPOINT = "/updates";
