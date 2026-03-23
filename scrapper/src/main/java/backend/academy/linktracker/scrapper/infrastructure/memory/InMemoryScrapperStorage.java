@@ -1,6 +1,7 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory;
 
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -73,5 +74,16 @@ public class InMemoryScrapperStorage {
      */
     long nextLinkId() {
         return linkIdSequence.incrementAndGet();
+    }
+
+    /**
+     * Returns immutable snapshot of subscriptions grouped by chat.
+     *
+     * @return map from chat to copied URL/subscription map
+     */
+    Map<Long, Map<String, TrackedSubscription>> subscriptionsByChatSnapshot() {
+        return subscriptionsByChat.entrySet().stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey, entry -> Map.copyOf(entry.getValue())));
     }
 }
