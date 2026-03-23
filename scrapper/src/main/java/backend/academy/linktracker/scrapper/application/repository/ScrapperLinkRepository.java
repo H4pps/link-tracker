@@ -1,5 +1,6 @@
 package backend.academy.linktracker.scrapper.application.repository;
 
+import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.List;
 import java.util.Optional;
@@ -36,4 +37,11 @@ public interface ScrapperLinkRepository {
      * @return removed subscription or empty optional when link is missing or chat does not exist
      */
     Optional<TrackedSubscription> remove(long chatId, String url);
+
+    /**
+     * Reads all tracked URLs with subscribed chat identifiers.
+     *
+     * @return deterministic global tracked-link snapshots
+     */
+    List<TrackedLinkSnapshot> findAllTrackedLinks();
 }
