@@ -14,3 +14,7 @@ app:
     update-listener-sleep: ${APP_TELEGRAM_UPDATE_LISTENER_SLEEP:1s}
     polling-enabled: ${APP_TELEGRAM_POLLING_ENABLED:true}
     debug: ${APP_TELEGRAM_DEBUG:false}
+  scrapper:
+    base-url: ${APP_SCRAPPER_BASE_URL:http://localhost:8081}
+    connect-timeout: ${APP_SCRAPPER_CONNECT_TIMEOUT:2s}
+    read-timeout: ${APP_SCRAPPER_READ_TIMEOUT:5s}

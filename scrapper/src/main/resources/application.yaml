@@ -8,8 +8,21 @@ spring:
     import: optional:file:.env[.properties],optional:file:scrapper/.env[.properties]
 
 app:
+  bot:
+    base-url: ${APP_BOT_BASE_URL:http://localhost:8080}
+    connect-timeout: ${APP_BOT_CONNECT_TIMEOUT:2s}
+    read-timeout: ${APP_BOT_READ_TIMEOUT:5s}
+  scheduler:
+    enabled: ${APP_SCHEDULER_ENABLED:true}
+    interval: ${APP_SCHEDULER_INTERVAL:30s}
   stackoverflow:
+    base-url: ${APP_STACKOVERFLOW_BASE_URL:https://api.stackexchange.com}
     key: ${STACKOVERFLOW_KEY} # Use env variable. DO NOT KEEP TOKEN HERE
     access-token: ${STACKOVERFLOW_ACCESS_KEY} # Use env variable. DO NOT KEEP TOKEN HERE
+    connect-timeout: ${APP_STACKOVERFLOW_CONNECT_TIMEOUT:2s}
+    read-timeout: ${APP_STACKOVERFLOW_READ_TIMEOUT:5s}
   github:
+    base-url: ${APP_GITHUB_BASE_URL:https://api.github.com}
     token: ${GITHUB_TOKEN} # Use env variable. DO NOT KEEP TOKEN HERE
+    connect-timeout: ${APP_GITHUB_CONNECT_TIMEOUT:2s}
+    read-timeout: ${APP_GITHUB_READ_TIMEOUT:5s}
