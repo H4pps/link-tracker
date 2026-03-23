@@ -119,4 +119,16 @@ public class ScrapperLogger {
     public void logSchedulerNotifyResult(String url, boolean sent) {
         LOGGER.atInfo().addKeyValue("url", url).addKeyValue("sent", sent).log("Bot notification processed");
     }
+
+    /**
+     * Logs embedded scrapper gRPC server startup event.
+     *
+     * @param port gRPC server port
+     */
+    public void logGrpcServerStarted(int port) {
+        LOGGER.atInfo()
+                .addKeyValue("transport", "grpc")
+                .addKeyValue("port", port)
+                .log("Scrapper gRPC server started");
+    }
 }
