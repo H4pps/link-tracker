@@ -218,8 +218,7 @@ class ScrapperApiControllerWebMvcTest {
         mockMvc.perform(post("/links")
                         .header("Tg-Chat-Id", 1)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                """
+                        .content("""
                                 {
                                   "link": "https://github.com/octocat/Hello-World",
                                   "tags": ["work"],
@@ -231,8 +230,7 @@ class ScrapperApiControllerWebMvcTest {
         mockMvc.perform(delete("/links")
                         .header("Tg-Chat-Id", 999)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                """
+                        .content("""
                                 {
                                   "link": "https://github.com/octocat/Hello-World"
                                 }
@@ -254,8 +252,7 @@ class ScrapperApiControllerWebMvcTest {
         mockMvc.perform(post("/links")
                         .header("Tg-Chat-Id", 1)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(
-                                """
+                        .content("""
                                 {
                                   "link": "https://github.com/octocat/Hello-World",
                                   "tags": ["work"],

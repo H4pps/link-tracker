@@ -30,6 +30,8 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.awaitility.Awaitility;
@@ -38,7 +40,6 @@ import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.images.builder.ImageFromDockerfile;
 
 /**
  * Container end-to-end checks for HTTP fallback and default gRPC transport.
@@ -52,10 +53,9 @@ class TransportIntegrationE2EIT {
     private static final String TELEGRAM_TOKEN = "e2e-test-token";
     private static final String TRACKED_URL = "https://github.com/acme/repo";
     private static final Path REPOSITORY_ROOT = resolveRepositoryRoot();
-    private static final ImageFromDockerfile BOT_IMAGE =
-            imageFromActualDockerfile("link-tracker-bot-e2e:latest", "bot/Dockerfile");
-    private static final ImageFromDockerfile SCRAPPER_IMAGE =
-            imageFromActualDockerfile("link-tracker-scrapper-e2e:latest", "scrapper/Dockerfile");
+    private static final String BOT_IMAGE = "link-tracker-bot-e2e:latest";
+    private static final String SCRAPPER_IMAGE = "link-tracker-scrapper-e2e:latest";
+    private static final AtomicBoolean E2E_IMAGES_BUILT = new AtomicBoolean(false);
 
     /**
      * Verifies HTTP transport fallback with containerized REST lifecycle checks.
@@ -173,6 +173,7 @@ class TransportIntegrationE2EIT {
      */
     private RunningSystem startSystem(
             TransportMode mode, FakeIntegrationServer fakeServer, boolean schedulerEnabled, boolean pollingEnabled) {
+        ensureDockerImagesBuilt();
         Testcontainers.exposeHostPorts(fakeServer.port());
         Network network = Network.newNetwork();
         try {
@@ -317,16 +318,49 @@ class TransportIntegrationE2EIT {
     }
 
     /**
-     * Creates a Testcontainers image descriptor based on a real service Dockerfile.
+     * Builds bot and scrapper images once for containerized E2E runs.
      *
-     * @param imageName docker image tag used by Testcontainers
-     * @param dockerfilePath dockerfile path relative to repository root
-     * @return image descriptor using repository root as build context
+     * @throws IllegalStateException when Docker build process fails
      */
-    private static ImageFromDockerfile imageFromActualDockerfile(String imageName, String dockerfilePath) {
-        return new ImageFromDockerfile(imageName, false)
-                .withFileFromPath(".", REPOSITORY_ROOT)
-                .withDockerfile(REPOSITORY_ROOT.resolve(dockerfilePath));
+    private static synchronized void ensureDockerImagesBuilt() {
+        if (E2E_IMAGES_BUILT.get()) {
+            return;
+        }
+
+        runDockerBuild("scrapper/Dockerfile", SCRAPPER_IMAGE);
+        runDockerBuild("bot/Dockerfile", BOT_IMAGE);
+        E2E_IMAGES_BUILT.set(true);
+    }
+
+    /**
+     * Executes docker build command for a given image tag.
+     *
+     * @param dockerfilePath dockerfile path relative to repository root
+     * @param imageName image tag for generated image
+     * @throws IllegalStateException when docker command exits with non-zero code
+     */
+    private static void runDockerBuild(String dockerfilePath, String imageName) {
+        ProcessBuilder processBuilder =
+                new ProcessBuilder("docker", "build", "-f", dockerfilePath, "-t", imageName, ".");
+        processBuilder.directory(REPOSITORY_ROOT.toFile());
+        processBuilder.inheritIO();
+
+        try {
+            Process process = processBuilder.start();
+            boolean finished = process.waitFor(15, TimeUnit.MINUTES);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new IllegalStateException("Timed out while building docker image: " + imageName);
+            }
+            if (process.exitValue() != 0) {
+                throw new IllegalStateException("Docker build failed for image: " + imageName);
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to start docker build for image: " + imageName, exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while building docker image: " + imageName, exception);
+        }
     }
 
     /**
