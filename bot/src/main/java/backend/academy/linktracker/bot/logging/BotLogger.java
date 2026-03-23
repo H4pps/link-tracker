@@ -122,4 +122,79 @@ public class BotLogger {
                 .addKeyValue("errorCode", errorCode)
                 .log("Bot API request failed");
     }
+
+    /**
+     * Logs outbound scrapper request start.
+     *
+     * @param operation scrapper operation name
+     * @param chatId telegram chat identifier
+     * @param url tracked URL when available
+     */
+    public void logScrapperRequest(String operation, long chatId, String url) {
+        LOGGER.atInfo()
+                .addKeyValue("operation", operation)
+                .addKeyValue("chatId", chatId)
+                .addKeyValue("url", url)
+                .log("Scrapper request started");
+    }
+
+    /**
+     * Logs outbound scrapper request failure.
+     *
+     * @param operation scrapper operation name
+     * @param chatId telegram chat identifier
+     * @param url tracked URL when available
+     * @param status HTTP status code, zero for transport issues
+     * @param errorCode failure code
+     */
+    public void logScrapperRequestFailed(String operation, long chatId, String url, int status, String errorCode) {
+        LOGGER.atWarn()
+                .addKeyValue("operation", operation)
+                .addKeyValue("chatId", chatId)
+                .addKeyValue("url", url)
+                .addKeyValue("status", status)
+                .addKeyValue("errorCode", errorCode)
+                .log("Scrapper request failed");
+    }
+
+    /**
+     * Logs transition to a new track dialog state.
+     *
+     * @param chatId telegram chat identifier
+     * @param state new dialog state
+     */
+    public void logTrackDialogState(long chatId, String state) {
+        LOGGER.atInfo()
+                .addKeyValue("chatId", chatId)
+                .addKeyValue("state", state)
+                .log("Track dialog state changed");
+    }
+
+    /**
+     * Logs update notification send attempt.
+     *
+     * @param chatId target chat identifier
+     * @param url tracked URL
+     */
+    public void logUpdateNotificationSendAttempt(long chatId, String url) {
+        LOGGER.atInfo()
+                .addKeyValue("chatId", chatId)
+                .addKeyValue("url", url)
+                .log("Sending update notification to Telegram");
+    }
+
+    /**
+     * Logs update notification send result.
+     *
+     * @param chatId target chat identifier
+     * @param url tracked URL
+     * @param sent whether sending succeeded
+     */
+    public void logUpdateNotificationSendResult(long chatId, String url, boolean sent) {
+        LOGGER.atInfo()
+                .addKeyValue("chatId", chatId)
+                .addKeyValue("url", url)
+                .addKeyValue("sent", sent)
+                .log("Telegram update notification processed");
+    }
 }
