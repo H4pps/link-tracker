@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: bot
+  config:
+    import: optional:file:.env[.properties],optional:file:bot/.env[.properties]
 
 app:
   telegram:
     url: https://api.telegram.org/bot
     token: ${TELEGRAM_TOKEN} # Use env variable. DO NOT KEEP TOKEN HERE
     update-listener-sleep: 1s
+    polling-enabled: true
     debug: false

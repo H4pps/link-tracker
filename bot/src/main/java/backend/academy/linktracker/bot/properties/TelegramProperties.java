@@ -12,6 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.convert.DurationUnit;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * Application properties used to configure Telegram API communication.
+ */
 @ConfigurationProperties(prefix = "app.telegram")
 @Validated
 @Getter
@@ -31,4 +34,6 @@ public class TelegramProperties {
     private Duration updateListenerSleep = Duration.ofSeconds(1);
 
     private boolean debug;
+
+    private boolean pollingEnabled = true;
 }
