@@ -1,6 +1,6 @@
-package backend.academy.linktracker.bot.api.rest;
+package backend.academy.linktracker.bot.api.rest.errors;
 
-import backend.academy.linktracker.bot.api.rest.dto.ApiErrorResponse;
+import backend.academy.linktracker.bot.api.rest.errors.dto.ApiErrorResponse;
 import backend.academy.linktracker.bot.logging.BotLogger;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;

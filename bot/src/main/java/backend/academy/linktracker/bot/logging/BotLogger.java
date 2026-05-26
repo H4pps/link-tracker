@@ -62,23 +62,6 @@ public class BotLogger {
     }
 
     /**
-     * Logs incoming bot API update payload metadata.
-     *
-     * @param endpoint API endpoint path
-     * @param updateId update identifier
-     * @param url update URL
-     * @param chatCount number of chats in payload
-     */
-    public void logApiUpdateReceived(String endpoint, Long updateId, String url, int chatCount) {
-        LOGGER.atInfo()
-                .addKeyValue("endpoint", endpoint)
-                .addKeyValue("updateId", updateId)
-                .addKeyValue("url", url)
-                .addKeyValue("chatCount", chatCount)
-                .log("Bot API update request accepted");
-    }
-
-    /**
      * Logs successful use-case acceptance of bot API update payload.
      *
      * @param updateId update identifier
@@ -91,6 +74,15 @@ public class BotLogger {
                 .addKeyValue("url", url)
                 .addKeyValue("chatCount", chatCount)
                 .log("Link update processed by bot use case");
+    }
+
+    /**
+     * Logs incoming bot API request lifecycle start.
+     *
+     * @param endpoint API endpoint path
+     */
+    public void logApiRequestReceived(String endpoint) {
+        LOGGER.atInfo().addKeyValue("endpoint", endpoint).log("Bot API request accepted");
     }
 
     /**

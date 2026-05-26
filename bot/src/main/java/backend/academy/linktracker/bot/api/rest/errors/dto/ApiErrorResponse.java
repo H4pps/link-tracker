@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.api.rest.dto;
+package backend.academy.linktracker.bot.api.rest.errors.dto;
 
 import java.util.List;
 

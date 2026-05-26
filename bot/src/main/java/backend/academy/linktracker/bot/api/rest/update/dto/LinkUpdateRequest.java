@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.api.rest.dto;
+package backend.academy.linktracker.bot.api.rest.update.dto;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;

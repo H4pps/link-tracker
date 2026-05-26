@@ -1,9 +1,8 @@
-package backend.academy.linktracker.bot.api.rest;
+package backend.academy.linktracker.bot.api.rest.controllers;
 
-import backend.academy.linktracker.bot.api.rest.dto.LinkUpdateRequest;
+import backend.academy.linktracker.bot.api.rest.update.dto.LinkUpdateRequest;
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
-import backend.academy.linktracker.bot.logging.BotLogger;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +21,6 @@ public class BotUpdateController {
     private static final String UPDATES_ENDPOINT = "/updates";
 
     private final BotUpdateUseCase botUpdateUseCase;
-    private final BotLogger botLogger;
 
     /**
      * Accepts a link update payload and delegates it to bot update use case.
@@ -32,14 +30,7 @@ public class BotUpdateController {
      */
     @PostMapping(UPDATES_ENDPOINT)
     public ResponseEntity<Void> postUpdate(@Valid @RequestBody LinkUpdateRequest request) {
-        botLogger.logApiUpdateReceived(
-                UPDATES_ENDPOINT,
-                request.id(),
-                request.url(),
-                request.tgChatIds().size());
-
         botUpdateUseCase.processLinkUpdate(toCommand(request));
-        botLogger.logApiRequestSucceeded(UPDATES_ENDPOINT, 200);
         return ResponseEntity.ok().build();
     }
 
