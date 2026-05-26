@@ -1,7 +1,7 @@
 package backend.academy.linktracker.bot.infrastructure.memory;
 
-import backend.academy.linktracker.bot.application.track.TrackDialogSession;
-import backend.academy.linktracker.bot.application.track.TrackDialogStateRepository;
+import backend.academy.linktracker.bot.application.track.state.TrackDialogSession;
+import backend.academy.linktracker.bot.application.track.state.TrackDialogStateRepository;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.springframework.stereotype.Repository;

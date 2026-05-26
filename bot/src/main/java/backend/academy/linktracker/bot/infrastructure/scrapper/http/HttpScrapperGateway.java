@@ -1,11 +1,12 @@
 package backend.academy.linktracker.bot.infrastructure.scrapper.http;
 
-import backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand;
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
-import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkView;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperChatGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.application.scrapper.view.ScrapperLinkView;
 import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperAddLinkRequest;
 import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperLinkResponse;
 import backend.academy.linktracker.bot.infrastructure.scrapper.http.dto.ScrapperListLinksResponse;
@@ -25,7 +26,7 @@ import org.springframework.web.client.RestClient;
  */
 @Component
 @ConditionalOnProperty(prefix = "app.scrapper", name = "mode", havingValue = "http")
-public class HttpScrapperGateway implements ScrapperGateway {
+public class HttpScrapperGateway implements ScrapperChatGateway, ScrapperLinkGateway {
 
     private static final String CHAT_ENDPOINT_TEMPLATE = "/tg-chat/{id}";
     private static final String LINKS_ENDPOINT = "/links";

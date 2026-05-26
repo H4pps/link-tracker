@@ -1,6 +1,7 @@
 package backend.academy.linktracker.bot.infrastructure.scrapper.http;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.delete;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -8,10 +9,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand;
-import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkView;
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
+import backend.academy.linktracker.bot.application.scrapper.view.ScrapperLinkView;
 import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.ScrapperProperties;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -31,7 +32,7 @@ class HttpScrapperGatewayTest {
     void setUp() {
         wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
         wireMockServer.start();
-        com.github.tomakehurst.wiremock.client.WireMock.configureFor("localhost", wireMockServer.port());
+        configureFor("localhost", wireMockServer.port());
 
         ScrapperProperties properties = new ScrapperProperties();
         properties.setBaseUrl(wireMockServer.baseUrl());

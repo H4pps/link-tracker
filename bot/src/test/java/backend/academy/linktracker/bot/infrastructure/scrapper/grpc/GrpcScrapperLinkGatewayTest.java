@@ -3,15 +3,13 @@ package backend.academy.linktracker.bot.infrastructure.scrapper.grpc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand;
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
 import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.ScrapperProperties;
-import backend.academy.linktracker.grpc.Ack;
 import backend.academy.linktracker.grpc.AddLinkRequest;
-import backend.academy.linktracker.grpc.ChatRequest;
 import backend.academy.linktracker.grpc.Link;
 import backend.academy.linktracker.grpc.ListLinksRequest;
 import backend.academy.linktracker.grpc.ListLinksResponse;
@@ -27,15 +25,15 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-class GrpcScrapperGatewayTest {
+class GrpcScrapperLinkGatewayTest {
 
     private Server server;
-    private GrpcScrapperGateway gateway;
+    private GrpcScrapperClient client;
 
     @AfterEach
     void tearDown() {
-        if (gateway != null) {
-            gateway.shutdown();
+        if (client != null) {
+            client.shutdown();
         }
         if (server != null) {
             server.shutdownNow();
@@ -58,8 +56,7 @@ class GrpcScrapperGatewayTest {
                 responseObserver.onCompleted();
             }
         });
-
-        gateway = createGateway(server.getPort());
+        GrpcScrapperLinkGateway gateway = new GrpcScrapperLinkGateway(createClient(server.getPort()));
 
         var links = gateway.listLinks(1L);
 
@@ -76,7 +73,7 @@ class GrpcScrapperGatewayTest {
                 responseObserver.onError(Status.ALREADY_EXISTS.asRuntimeException());
             }
         });
-        gateway = createGateway(server.getPort());
+        GrpcScrapperLinkGateway gateway = new GrpcScrapperLinkGateway(createClient(server.getPort()));
 
         assertThatThrownBy(() ->
                         gateway.addLink(1L, new AddScrapperLinkCommand("https://github.com/a/b", List.of(), List.of())))
@@ -91,23 +88,23 @@ class GrpcScrapperGatewayTest {
                 responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
             }
         });
-        gateway = createGateway(server.getPort());
+        GrpcScrapperLinkGateway gateway = new GrpcScrapperLinkGateway(createClient(server.getPort()));
 
         assertThatThrownBy(() -> gateway.removeLink(1L, "https://github.com/a/b"))
                 .isInstanceOf(ScrapperNotFoundException.class);
     }
 
     @Test
-    void registerChatMapsUnavailableStatus() throws IOException {
+    void listLinksMapsOtherStatusToUnavailable() throws IOException {
         server = startServer(new ScrapperServiceGrpc.ScrapperServiceImplBase() {
             @Override
-            public void registerChat(ChatRequest request, StreamObserver<Ack> responseObserver) {
-                responseObserver.onError(Status.UNAVAILABLE.asRuntimeException());
+            public void listLinks(ListLinksRequest request, StreamObserver<ListLinksResponse> responseObserver) {
+                responseObserver.onError(Status.INTERNAL.asRuntimeException());
             }
         });
-        gateway = createGateway(server.getPort());
+        GrpcScrapperLinkGateway gateway = new GrpcScrapperLinkGateway(createClient(server.getPort()));
 
-        assertThatThrownBy(() -> gateway.registerChat(1L)).isInstanceOf(ScrapperUnavailableException.class);
+        assertThatThrownBy(() -> gateway.listLinks(1L)).isInstanceOf(ScrapperUnavailableException.class);
     }
 
     private Server startServer(ScrapperServiceGrpc.ScrapperServiceImplBase service) throws IOException {
@@ -116,11 +113,12 @@ class GrpcScrapperGatewayTest {
         return localServer;
     }
 
-    private GrpcScrapperGateway createGateway(int port) {
+    private GrpcScrapperClient createClient(int port) {
         ScrapperProperties properties = new ScrapperProperties();
         properties.setGrpcHost("localhost");
         properties.setGrpcPort(port);
         properties.setGrpcDeadline(Duration.ofSeconds(1));
-        return new GrpcScrapperGateway(properties, new BotLogger());
+        client = new GrpcScrapperClient(properties, new BotLogger());
+        return client;
     }
 }
