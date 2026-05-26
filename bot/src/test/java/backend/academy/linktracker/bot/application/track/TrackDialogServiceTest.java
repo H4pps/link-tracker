@@ -10,6 +10,10 @@ import static org.mockito.Mockito.when;
 import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
 import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperGatewayException;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.application.track.parsing.CsvTrackDialogValueParser;
 import backend.academy.linktracker.bot.application.track.service.TrackDialogService;
 import backend.academy.linktracker.bot.application.track.validation.SupportedTrackUrlValidator;
 import backend.academy.linktracker.bot.infrastructure.memory.InMemoryTrackDialogStateRepository;
@@ -35,7 +39,11 @@ class TrackDialogServiceTest {
     @BeforeEach
     void setUp() {
         service = new TrackDialogService(
-                new InMemoryTrackDialogStateRepository(), scrapperGateway, new SupportedTrackUrlValidator(), botLogger);
+                new InMemoryTrackDialogStateRepository(),
+                scrapperGateway,
+                new SupportedTrackUrlValidator(),
+                new CsvTrackDialogValueParser(),
+                botLogger);
     }
 
     @Test
@@ -74,6 +82,43 @@ class TrackDialogServiceTest {
         String reply = service.handleDialogInput(10L, "");
 
         assertThat(reply).isEqualTo("Ссылка уже отслеживается");
+    }
+
+    @Test
+    void notFoundGatewayErrorMapsToChatNotRegisteredMessage() {
+        service.start(10L);
+        service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
+        service.handleDialogInput(10L, "work");
+        when(scrapperGateway.addLink(anyLong(), any())).thenThrow(new ScrapperNotFoundException("not found", null));
+
+        String reply = service.handleDialogInput(10L, "");
+
+        assertThat(reply).isEqualTo(TrackDialogService.CHAT_NOT_REGISTERED_REPLY);
+    }
+
+    @Test
+    void unavailableGatewayErrorMapsToScrapperUnavailableMessage() {
+        service.start(10L);
+        service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
+        service.handleDialogInput(10L, "work");
+        when(scrapperGateway.addLink(anyLong(), any()))
+                .thenThrow(new ScrapperUnavailableException("unavailable", null));
+
+        String reply = service.handleDialogInput(10L, "");
+
+        assertThat(reply).isEqualTo(TrackDialogService.SCRAPPER_UNAVAILABLE_REPLY);
+    }
+
+    @Test
+    void unknownGatewayErrorMapsToScrapperUnavailableMessage() {
+        service.start(10L);
+        service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
+        service.handleDialogInput(10L, "work");
+        when(scrapperGateway.addLink(anyLong(), any())).thenThrow(new ScrapperGatewayException("gateway", null));
+
+        String reply = service.handleDialogInput(10L, "");
+
+        assertThat(reply).isEqualTo(TrackDialogService.SCRAPPER_UNAVAILABLE_REPLY);
     }
 
     @Test

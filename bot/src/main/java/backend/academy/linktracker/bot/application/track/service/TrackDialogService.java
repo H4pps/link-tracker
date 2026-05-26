@@ -3,15 +3,17 @@ package backend.academy.linktracker.bot.application.track.service;
 import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
 import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
+import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperGatewayException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.application.track.parsing.TrackDialogValueParser;
 import backend.academy.linktracker.bot.application.track.state.TrackDialogSession;
 import backend.academy.linktracker.bot.application.track.state.TrackDialogState;
 import backend.academy.linktracker.bot.application.track.state.TrackDialogStateRepository;
 import backend.academy.linktracker.bot.application.track.validation.TrackUrlValidator;
 import backend.academy.linktracker.bot.logging.BotLogger;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -32,11 +34,15 @@ public class TrackDialogService {
             "Некорректная ссылка. Поддерживаются только GitHub репозитории и вопросы StackOverflow.";
     public static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
     public static final String CHAT_NOT_REGISTERED_REPLY = "Чат не зарегистрирован. Используйте /start.";
-    private static final String TAG_FILTER_SEPARATOR_REGEX = "[,，、،]+";
+    private static final Map<Class<? extends ScrapperGatewayException>, String> SCRAPPER_ERROR_REPLIES = Map.of(
+            ScrapperConflictException.class, DUPLICATE_REPLY,
+            ScrapperNotFoundException.class, CHAT_NOT_REGISTERED_REPLY,
+            ScrapperUnavailableException.class, SCRAPPER_UNAVAILABLE_REPLY);
 
     private final TrackDialogStateRepository stateRepository;
     private final ScrapperLinkGateway scrapperGateway;
     private final TrackUrlValidator trackUrlValidator;
+    private final TrackDialogValueParser valueParser;
     private final BotLogger botLogger;
 
     /**
@@ -102,44 +108,24 @@ public class TrackDialogService {
     }
 
     private String handleTags(long chatId, TrackDialogSession session, String messageText) {
-        List<String> tags = parseCsv(messageText);
+        List<String> tags = valueParser.parseList(messageText);
         stateRepository.save(chatId, new TrackDialogSession(TrackDialogState.AWAITING_FILTERS, session.url(), tags));
         botLogger.logTrackDialogState(chatId, TrackDialogState.AWAITING_FILTERS.name());
         return FILTERS_REPLY;
     }
 
     private String handleFilters(long chatId, TrackDialogSession session, String messageText) {
-        List<String> filters = parseCsv(messageText);
+        List<String> filters = valueParser.parseList(messageText);
         try {
             scrapperGateway.addLink(chatId, new AddScrapperLinkCommand(session.url(), session.tags(), filters));
             stateRepository.clear(chatId);
             botLogger.logTrackDialogState(chatId, TrackDialogState.IDLE.name());
             return "Ссылка добавлена в отслеживание: " + session.url();
-        } catch (ScrapperConflictException exception) {
+        } catch (ScrapperGatewayException exception) {
             stateRepository.clear(chatId);
             botLogger.logTrackDialogState(chatId, TrackDialogState.IDLE.name());
-            return DUPLICATE_REPLY;
-        } catch (ScrapperNotFoundException exception) {
-            stateRepository.clear(chatId);
-            botLogger.logTrackDialogState(chatId, TrackDialogState.IDLE.name());
-            return CHAT_NOT_REGISTERED_REPLY;
-        } catch (ScrapperUnavailableException exception) {
-            stateRepository.clear(chatId);
-            botLogger.logTrackDialogState(chatId, TrackDialogState.IDLE.name());
-            return SCRAPPER_UNAVAILABLE_REPLY;
+            return SCRAPPER_ERROR_REPLIES.getOrDefault(exception.getClass(), SCRAPPER_UNAVAILABLE_REPLY);
         }
-    }
-
-    private List<String> parseCsv(String input) {
-        String normalized = normalize(input);
-        if (normalized.isBlank()) {
-            return List.of();
-        }
-
-        return Arrays.stream(normalized.split(TAG_FILTER_SEPARATOR_REGEX))
-                .map(String::strip)
-                .filter(value -> !value.isBlank())
-                .toList();
     }
 
     private String normalize(String input) {
