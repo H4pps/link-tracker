@@ -20,7 +20,7 @@ class HelpCommandHandler implements TelegramCommandHandler {
     /**
      * Returns help text generated from registered commands.
      *
-     * @param messageText raw incoming message text
+     * @param context command processing context
      * @return auto-generated help message
      */
     @Override
