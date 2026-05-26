@@ -1,25 +1,13 @@
 package backend.academy.linktracker.bot.application.scrapper;
 
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
+import backend.academy.linktracker.bot.application.scrapper.view.ScrapperLinkView;
 import java.util.List;
 
 /**
- * Bot-side application port for scrapper operations.
+ * Bot-side application port for scrapper link operations.
  */
-public interface ScrapperGateway {
-
-    /**
-     * Registers telegram chat in scrapper.
-     *
-     * @param chatId telegram chat identifier
-     */
-    void registerChat(long chatId);
-
-    /**
-     * Removes telegram chat from scrapper. TODO: implement later
-     *
-     * @param chatId telegram chat identifier
-     */
-    void deleteChat(long chatId);
+public interface ScrapperLinkGateway {
 
     /**
      * Lists links tracked for chat.

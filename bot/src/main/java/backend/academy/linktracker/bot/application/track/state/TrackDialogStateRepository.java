@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.application.track;
+package backend.academy.linktracker.bot.application.track.state;
 
 /**
  * Persistence boundary for chat-scoped `/track` dialog sessions.

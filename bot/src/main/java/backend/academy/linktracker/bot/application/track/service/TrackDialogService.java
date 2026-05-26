@@ -1,15 +1,17 @@
-package backend.academy.linktracker.bot.application.track;
+package backend.academy.linktracker.bot.application.track.service;
 
-import backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand;
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.application.track.state.TrackDialogSession;
+import backend.academy.linktracker.bot.application.track.state.TrackDialogState;
+import backend.academy.linktracker.bot.application.track.state.TrackDialogStateRepository;
+import backend.academy.linktracker.bot.application.track.validation.TrackUrlValidator;
 import backend.academy.linktracker.bot.logging.BotLogger;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -30,10 +32,11 @@ public class TrackDialogService {
             "Некорректная ссылка. Поддерживаются только GitHub репозитории и вопросы StackOverflow.";
     public static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
     public static final String CHAT_NOT_REGISTERED_REPLY = "Чат не зарегистрирован. Используйте /start.";
-    private static final String COMMA_SEPARATOR = ",";
+    private static final String TAG_FILTER_SEPARATOR_REGEX = "[,，、،]+";
 
     private final TrackDialogStateRepository stateRepository;
-    private final ScrapperGateway scrapperGateway;
+    private final ScrapperLinkGateway scrapperGateway;
+    private final TrackUrlValidator trackUrlValidator;
     private final BotLogger botLogger;
 
     /**
@@ -89,7 +92,7 @@ public class TrackDialogService {
 
     private String handleLink(long chatId, String messageText) {
         String candidate = normalize(messageText);
-        if (!isSupportedTrackUrl(candidate)) {
+        if (!trackUrlValidator.isValid(candidate)) {
             return INVALID_URL_REPLY;
         }
 
@@ -133,7 +136,7 @@ public class TrackDialogService {
             return List.of();
         }
 
-        return Arrays.stream(normalized.split(COMMA_SEPARATOR))
+        return Arrays.stream(normalized.split(TAG_FILTER_SEPARATOR_REGEX))
                 .map(String::strip)
                 .filter(value -> !value.isBlank())
                 .toList();
@@ -144,33 +147,5 @@ public class TrackDialogService {
             return "";
         }
         return input.strip();
-    }
-
-    private boolean isSupportedTrackUrl(String candidate) {
-        try {
-            URI uri = URI.create(candidate);
-            if (uri.getScheme() == null || uri.getHost() == null) {
-                return false;
-            }
-
-            String scheme = uri.getScheme().toLowerCase(Locale.ROOT);
-            if (!("http".equals(scheme) || "https".equals(scheme))) {
-                return false;
-            }
-
-            String host = uri.getHost().toLowerCase(Locale.ROOT);
-            String[] segments = Arrays.stream(uri.getPath().split("/"))
-                    .filter(part -> !part.isBlank())
-                    .toArray(String[]::new);
-
-            boolean github = ("github.com".equals(host) || "www.github.com".equals(host)) && segments.length >= 2;
-            boolean stackoverflow = ("stackoverflow.com".equals(host) || "www.stackoverflow.com".equals(host))
-                    && segments.length >= 2
-                    && "questions".equals(segments[0])
-                    && segments[1].chars().allMatch(Character::isDigit);
-            return github || stackoverflow;
-        } catch (RuntimeException exception) {
-            return false;
-        }
     }
 }

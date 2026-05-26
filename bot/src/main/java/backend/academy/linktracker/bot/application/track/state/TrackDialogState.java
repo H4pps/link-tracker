@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.application.track;
+package backend.academy.linktracker.bot.application.track.state;
 
 /**
  * Chat-scoped state of `/track` dialog.

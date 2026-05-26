@@ -7,8 +7,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
+import backend.academy.linktracker.bot.application.scrapper.command.AddScrapperLinkCommand;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
+import backend.academy.linktracker.bot.application.track.service.TrackDialogService;
+import backend.academy.linktracker.bot.application.track.validation.SupportedTrackUrlValidator;
 import backend.academy.linktracker.bot.infrastructure.memory.InMemoryTrackDialogStateRepository;
 import backend.academy.linktracker.bot.logging.BotLogger;
 import java.util.List;
@@ -22,7 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TrackDialogServiceTest {
 
     @Mock
-    private ScrapperGateway scrapperGateway;
+    private ScrapperLinkGateway scrapperGateway;
 
     @Mock
     private BotLogger botLogger;
@@ -31,7 +34,8 @@ class TrackDialogServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TrackDialogService(new InMemoryTrackDialogStateRepository(), scrapperGateway, botLogger);
+        service = new TrackDialogService(
+                new InMemoryTrackDialogStateRepository(), scrapperGateway, new SupportedTrackUrlValidator(), botLogger);
     }
 
     @Test
@@ -82,8 +86,7 @@ class TrackDialogServiceTest {
         verify(scrapperGateway)
                 .addLink(
                         10L,
-                        new backend.academy.linktracker.bot.application.scrapper.AddScrapperLinkCommand(
-                                "https://github.com/octocat/Hello-World", List.of(), List.of()));
+                        new AddScrapperLinkCommand("https://github.com/octocat/Hello-World", List.of(), List.of()));
     }
 
     @Test
@@ -99,5 +102,29 @@ class TrackDialogServiceTest {
         service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
         service.handleDialogInput(10L, "work");
         assertThat(service.cancel(10L)).isEqualTo(TrackDialogService.CANCELLED_REPLY);
+    }
+
+    @Test
+    void singleTagAdvancesToFiltersStep() {
+        service.start(10L);
+        service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
+
+        String afterSingleTag = service.handleDialogInput(10L, "work");
+
+        assertThat(afterSingleTag).isEqualTo(TrackDialogService.FILTERS_REPLY);
+    }
+
+    @Test
+    void unicodeCommaIsHandledAsTagSeparator() {
+        service.start(10L);
+        service.handleDialogInput(10L, "https://github.com/octocat/Hello-World");
+        service.handleDialogInput(10L, "work，java");
+        service.handleDialogInput(10L, "");
+
+        verify(scrapperGateway)
+                .addLink(
+                        10L,
+                        new AddScrapperLinkCommand(
+                                "https://github.com/octocat/Hello-World", List.of("work", "java"), List.of()));
     }
 }
