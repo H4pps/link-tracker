@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperChatGateway;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.ParsedCommand;
@@ -18,7 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class StartCommandHandlerTest {
 
     @Mock
-    private ScrapperGateway scrapperGateway;
+    private ScrapperChatGateway scrapperGateway;
 
     private StartCommandHandler handler;
 

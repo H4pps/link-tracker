@@ -1,6 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
-import backend.academy.linktracker.bot.application.track.TrackDialogService;
+import backend.academy.linktracker.bot.application.track.service.TrackDialogService;
 import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
 import backend.academy.linktracker.bot.telegram.command.CommandContext;
@@ -20,7 +20,7 @@ class UntrackCommandHandler implements TelegramCommandHandler {
     private static final String NOT_FOUND_REPLY = "Ссылка не найдена в отслеживании.";
     private static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
 
-    private final ScrapperGateway scrapperGateway;
+    private final ScrapperLinkGateway scrapperGateway;
 
     /**
      * Validates command arguments and returns deterministic feedback.

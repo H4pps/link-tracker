@@ -1,6 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command;
 
-import backend.academy.linktracker.bot.application.track.TrackDialogService;
+import backend.academy.linktracker.bot.application.track.service.TrackDialogService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -31,9 +31,7 @@ public class TelegramCommandProcessor {
                         trackDialogService.cancel(chatId), CANCEL_COMMAND, parsedCommand.inputCommand());
             }
 
-            boolean isCommand = !parsedCommand.inputCommand().isBlank()
-                    && parsedCommand.inputCommand().charAt(0) == '/';
-            if (!isCommand) {
+            if (!isSlashCommandToken(parsedCommand.inputCommand())) {
                 return new CommandProcessingResult(
                         trackDialogService.handleDialogInput(chatId, messageText),
                         "track-dialog",
@@ -50,6 +48,16 @@ public class TelegramCommandProcessor {
                         handler.handle(context), parsedCommand.normalizedCommand(), parsedCommand.inputCommand()))
                 .orElseGet(() ->
                         new CommandProcessingResult(UNKNOWN_REPLY, UNKNOWN_COMMAND_NAME, parsedCommand.inputCommand()));
+    }
+
+    /**
+     * Determines whether input token starts with slash and should be treated as a command token.
+     *
+     * @param inputCommand first token extracted from incoming message
+     * @return true when token starts with '/'
+     */
+    private boolean isSlashCommandToken(String inputCommand) {
+        return !inputCommand.isBlank() && inputCommand.charAt(0) == '/';
     }
 
     /**

@@ -5,7 +5,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import backend.academy.linktracker.bot.application.track.TrackDialogService;
+import backend.academy.linktracker.bot.application.track.service.TrackDialogService;
 import backend.academy.linktracker.bot.telegram.command.handlers.TelegramCommandHandler;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,6 +81,18 @@ class TelegramCommandProcessorTest {
 
         assertThat(result.reply()).isEqualTo("cancelled");
         assertThat(result.commandForLog()).isEqualTo("cancel");
+    }
+
+    @Test
+    void unknownSlashTokenInDialogReturnsUnknownReply() {
+        when(trackDialogService.hasActiveDialog(1L)).thenReturn(true);
+
+        TelegramCommandProcessor.CommandProcessingResult result = processor.process(1L, "/work");
+
+        assertThat(result.reply()).isEqualTo(TelegramCommandProcessor.UNKNOWN_REPLY);
+        assertThat(result.commandForLog()).isEqualTo(TelegramCommandProcessor.UNKNOWN_COMMAND_NAME);
+        assertThat(result.inputCommand()).isEqualTo("/work");
+        verify(trackDialogService).cancel(1L);
     }
 
     @TelegramBotCommand(name = "start", description = "начало работы")

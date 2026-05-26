@@ -1,9 +1,9 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
-import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkView;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperLinkGateway;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.application.scrapper.view.ScrapperLinkView;
 import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
 import java.util.List;
@@ -24,7 +24,7 @@ class ListCommandHandler implements TelegramCommandHandler {
     private static final String CHAT_NOT_REGISTERED_REPLY = "Чат не зарегистрирован. Используйте /start.";
     private static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
 
-    private final ScrapperGateway scrapperGateway;
+    private final ScrapperLinkGateway scrapperGateway;
 
     /**
      * Returns deterministic empty-state response for list command.

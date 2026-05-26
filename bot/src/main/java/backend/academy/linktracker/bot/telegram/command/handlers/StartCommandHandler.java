@@ -1,6 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
-import backend.academy.linktracker.bot.application.scrapper.ScrapperGateway;
+import backend.academy.linktracker.bot.application.scrapper.ScrapperChatGateway;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
 import backend.academy.linktracker.bot.telegram.command.CommandContext;
@@ -19,7 +19,7 @@ class StartCommandHandler implements TelegramCommandHandler {
     static final String START_REPLY = "Добро пожаловать! Используйте /help, чтобы посмотреть доступные команды.";
     private static final String SCRAPPER_UNAVAILABLE_REPLY = "Сервис Scrapper временно недоступен. Попробуйте позже.";
 
-    private final ScrapperGateway scrapperGateway;
+    private final ScrapperChatGateway scrapperGateway;
 
     /**
      * Returns welcome text for `/start`.
