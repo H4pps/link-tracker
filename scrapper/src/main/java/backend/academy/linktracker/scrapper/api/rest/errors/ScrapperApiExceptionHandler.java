@@ -1,6 +1,6 @@
-package backend.academy.linktracker.scrapper.api.rest;
+package backend.academy.linktracker.scrapper.api.rest.errors;
 
-import backend.academy.linktracker.scrapper.api.rest.dto.ApiErrorResponse;
+import backend.academy.linktracker.scrapper.api.rest.errors.dto.ApiErrorResponse;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;

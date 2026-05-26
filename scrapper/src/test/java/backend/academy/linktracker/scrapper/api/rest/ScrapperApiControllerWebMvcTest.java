@@ -6,6 +6,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import backend.academy.linktracker.scrapper.api.rest.controllers.LinkController;
+import backend.academy.linktracker.scrapper.api.rest.controllers.TgChatController;
+import backend.academy.linktracker.scrapper.api.rest.errors.ScrapperApiExceptionHandler;
+import backend.academy.linktracker.scrapper.api.rest.interceptors.ScrapperApiLoggingInterceptor;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
@@ -48,8 +52,8 @@ class ScrapperApiControllerWebMvcTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
         mockMvc = MockMvcBuilders.standaloneSetup(
-                        new TgChatController(scrapperChatUseCase, scrapperLogger),
-                        new LinkController(scrapperLinkUseCase, scrapperLogger))
+                        new TgChatController(scrapperChatUseCase), new LinkController(scrapperLinkUseCase))
+                .addInterceptors(new ScrapperApiLoggingInterceptor(scrapperLogger))
                 .setControllerAdvice(new ScrapperApiExceptionHandler(scrapperLogger))
                 .setValidator(validator)
                 .build();
