@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.memory;
+package backend.academy.linktracker.scrapper.infrastructure.memory.inmemory;
 
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.Map;
@@ -6,12 +6,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
  * Shared in-memory storage used by in-memory scrapper repositories.
  */
 @Component
+@ConditionalOnProperty(name = "app.database.access-type", havingValue = "MEMORY")
 public class InMemoryScrapperStorage {
 
     private final Set<Long> registeredChats = ConcurrentHashMap.newKeySet();

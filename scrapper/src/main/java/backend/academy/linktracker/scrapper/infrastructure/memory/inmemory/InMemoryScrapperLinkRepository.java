@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.memory;
+package backend.academy.linktracker.scrapper.infrastructure.memory.inmemory;
 
 import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.database.access-type", havingValue = "MEMORY")
 public class InMemoryScrapperLinkRepository implements ScrapperLinkRepository {
 
     private final InMemoryScrapperStorage storage;

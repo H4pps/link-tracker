@@ -1,16 +1,18 @@
-package backend.academy.linktracker.scrapper.infrastructure.checkpoint;
+package backend.academy.linktracker.scrapper.infrastructure.memory.inmemory;
 
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 /**
  * Thread-safe in-memory checkpoint store.
  */
 @Repository
+@ConditionalOnProperty(name = "app.database.access-type", havingValue = "MEMORY")
 public class InMemoryLinkUpdateCheckpointRepository implements LinkUpdateCheckpointRepository {
 
     private final ConcurrentMap<String, Instant> checkpointsByUrl = new ConcurrentHashMap<>();
