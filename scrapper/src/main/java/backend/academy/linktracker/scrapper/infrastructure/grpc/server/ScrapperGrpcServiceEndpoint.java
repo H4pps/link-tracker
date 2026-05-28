@@ -13,6 +13,7 @@ import backend.academy.linktracker.scrapper.application.link.AddLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.RemoveLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import io.grpc.Status;
@@ -53,7 +54,11 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
     @Override
     public void listLinks(ListLinksRequest request, StreamObserver<ListLinksResponse> responseObserver) {
         try {
-            List<Link> links = scrapperLinkUseCase.listLinks(request.getChatId()).stream()
+            List<LinkView> linkViews = request.getLimit() > 0
+                    ? scrapperLinkUseCase.listLinks(
+                            request.getChatId(), new RepositoryPageRequest(request.getLimit(), request.getOffset()))
+                    : scrapperLinkUseCase.listLinks(request.getChatId());
+            List<Link> links = linkViews.stream()
                     .map(this::toGrpcLink)
                     .toList();
             responseObserver.onNext(ListLinksResponse.newBuilder()

@@ -8,8 +8,10 @@ import backend.academy.linktracker.scrapper.application.link.AddLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.RemoveLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -39,8 +42,14 @@ public class LinkController {
      * @return list response with size metadata
      */
     @GetMapping(LINKS_ENDPOINT)
-    public ResponseEntity<ListLinksResponse> listLinks(@RequestHeader(TG_CHAT_ID_HEADER) @Positive long chatId) {
-        List<LinkResponse> links = scrapperLinkUseCase.listLinks(chatId).stream()
+    public ResponseEntity<ListLinksResponse> listLinks(
+            @RequestHeader(TG_CHAT_ID_HEADER) @Positive long chatId,
+            @RequestParam(required = false) @PositiveOrZero Integer limit,
+            @RequestParam(required = false, defaultValue = "0") @PositiveOrZero Long offset) {
+        List<LinkView> linkViews = limit == null || limit == 0
+                ? scrapperLinkUseCase.listLinks(chatId)
+                : scrapperLinkUseCase.listLinks(chatId, new RepositoryPageRequest(limit, offset));
+        List<LinkResponse> links = linkViews.stream()
                 .map(this::toResponse)
                 .toList();
         ListLinksResponse response = new ListLinksResponse(links, links.size());

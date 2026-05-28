@@ -3,6 +3,7 @@ package backend.academy.linktracker.scrapper.infrastructure.memory.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import backend.academy.linktracker.scrapper.ScrapperApplication;
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
@@ -179,6 +180,67 @@ class SqlScrapperRepositoriesIntegrationTest {
         assertThat(snapshotsByUrl.get("https://example.com/shared").chatIds()).containsExactly(701L, 703L);
         assertThat(snapshotsByUrl.get("https://example.com/solo"))
                 .isEqualTo(new TrackedLinkSnapshot(unique.id(), "https://example.com/solo", List.of(702L)));
+    }
+
+    @Test
+    void findAllByChatIdSupportsDeterministicPagingAndUnpagedCompatibility() {
+        chatRepository.register(900L);
+
+        TrackedSubscription first = linkRepository
+                .addIfAbsent(900L, "https://example.com/1", List.of("tag-2", "tag-1"), List.of("f-2", "f-1"))
+                .orElseThrow();
+        TrackedSubscription second = linkRepository
+                .addIfAbsent(900L, "https://example.com/2", List.of("tag-4", "tag-3"), List.of("f-4", "f-3"))
+                .orElseThrow();
+        TrackedSubscription third = linkRepository
+                .addIfAbsent(900L, "https://example.com/3", List.of("tag-6", "tag-5"), List.of("f-6", "f-5"))
+                .orElseThrow();
+
+        List<TrackedSubscription> secondPage =
+                linkRepository.findAllByChatId(900L, new RepositoryPageRequest(2, 1));
+
+        assertThat(secondPage)
+                .containsExactly(
+                        new TrackedSubscription(second.id(), second.url(), List.of("tag-3", "tag-4"), List.of("f-4", "f-3")),
+                        new TrackedSubscription(third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
+        assertThat(linkRepository.findAllByChatId(900L))
+                .containsExactly(
+                        new TrackedSubscription(first.id(), first.url(), List.of("tag-1", "tag-2"), List.of("f-2", "f-1")),
+                        new TrackedSubscription(
+                                second.id(), second.url(), List.of("tag-3", "tag-4"), List.of("f-4", "f-3")),
+                        new TrackedSubscription(third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
+    }
+
+    @Test
+    void findAllTrackedLinksSupportsDeterministicPagingAndUnpagedCompatibility() {
+        chatRepository.register(910L);
+        chatRepository.register(911L);
+        chatRepository.register(912L);
+
+        TrackedSubscription first = linkRepository
+                .addIfAbsent(910L, "https://example.com/alpha", List.of("a"), List.of())
+                .orElseThrow();
+        linkRepository
+                .addIfAbsent(912L, "https://example.com/alpha", List.of("z"), List.of())
+                .orElseThrow();
+        TrackedSubscription second = linkRepository
+                .addIfAbsent(911L, "https://example.com/beta", List.of("b"), List.of())
+                .orElseThrow();
+        TrackedSubscription third = linkRepository
+                .addIfAbsent(912L, "https://example.com/gamma", List.of("c"), List.of())
+                .orElseThrow();
+
+        List<TrackedLinkSnapshot> page = linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 1));
+
+        assertThat(page)
+                .containsExactly(
+                        new TrackedLinkSnapshot(second.id(), "https://example.com/beta", List.of(911L)),
+                        new TrackedLinkSnapshot(third.id(), "https://example.com/gamma", List.of(912L)));
+        assertThat(linkRepository.findAllTrackedLinks())
+                .containsExactly(
+                        new TrackedLinkSnapshot(first.id(), "https://example.com/alpha", List.of(910L, 912L)),
+                        new TrackedLinkSnapshot(second.id(), "https://example.com/beta", List.of(911L)),
+                        new TrackedLinkSnapshot(third.id(), "https://example.com/gamma", List.of(912L)));
     }
 
     @Test

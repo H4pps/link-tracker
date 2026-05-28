@@ -12,6 +12,7 @@ import backend.academy.linktracker.grpc.AddLinkRequest;
 import backend.academy.linktracker.grpc.ChatRequest;
 import backend.academy.linktracker.grpc.ListLinksRequest;
 import backend.academy.linktracker.grpc.ScrapperServiceGrpc;
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
@@ -100,5 +101,36 @@ class ScrapperGrpcServiceEndpointTest {
                 .extracting(
                         error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.NOT_FOUND);
+    }
+
+    @Test
+    void listLinksWithOmittedLimitUsesUnpagedUseCaseCall() {
+        when(linkUseCase.listLinks(1L))
+                .thenReturn(List.of(new LinkView(10L, "https://github.com/a/b", List.of("x"), List.of())));
+
+        var response = stub.listLinks(ListLinksRequest.newBuilder()
+                .setChatId(1L)
+                .setOffset(5L)
+                .build());
+
+        assertThat(response.getSize()).isEqualTo(1);
+        verify(linkUseCase).listLinks(1L);
+    }
+
+    @Test
+    void listLinksMapsLimitAndOffsetToPagedUseCaseCall() {
+        when(linkUseCase.listLinks(1L, new RepositoryPageRequest(2, 3)))
+                .thenReturn(List.of(new LinkView(11L, "https://github.com/a/b", List.of("x"), List.of("f"))));
+
+        var response = stub.listLinks(ListLinksRequest.newBuilder()
+                .setChatId(1L)
+                .setLimit(2)
+                .setOffset(3)
+                .build());
+
+        assertThat(response.getSize()).isEqualTo(1);
+        assertThat(response.getLinksList()).hasSize(1);
+        assertThat(response.getLinks(0).getId()).isEqualTo(11L);
+        verify(linkUseCase).listLinks(1L, new RepositoryPageRequest(2, 3));
     }
 }

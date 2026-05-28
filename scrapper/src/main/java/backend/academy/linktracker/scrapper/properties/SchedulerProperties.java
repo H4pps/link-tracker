@@ -23,4 +23,6 @@ public class SchedulerProperties {
 
     @DurationUnit(ChronoUnit.MILLIS)
     private Duration interval = Duration.ofSeconds(30);
+
+    private int linkPageSize = 100;
 }

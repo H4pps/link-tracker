@@ -38,6 +38,7 @@ public class OrmScrapperChatRepository implements ScrapperChatRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public boolean exists(long chatId) {
         Long count = entityManager.createQuery(
                         "SELECT COUNT(chat) FROM ChatEntity chat WHERE chat.chatId = :chatId", Long.class)

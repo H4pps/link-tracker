@@ -1,10 +1,12 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory.sql;
 
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,8 +30,9 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
      * {@inheritDoc}
      */
     @Override
-    public List<TrackedSubscription> findAllByChatId(long chatId) {
-        List<SubscriptionRow> rows = jdbcTemplate.query(
+    @Transactional(readOnly = true)
+    public List<TrackedSubscription> findAllByChatId(long chatId, RepositoryPageRequest pageRequest) {
+        String sql = applyPagination(
                 """
                 SELECT subscriptions.id AS subscription_id,
                        links.id AS link_id,
@@ -40,11 +43,16 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
                 WHERE chats.chat_id = ?
                 ORDER BY links.id
                 """,
+                pageRequest);
+        List<Object> arguments = new ArrayList<>();
+        arguments.add(chatId);
+        arguments.addAll(paginationArguments(pageRequest));
+        List<SubscriptionRow> rows = jdbcTemplate.query(
+                sql,
                 (resultSet, rowNum) -> new SubscriptionRow(
                         resultSet.getLong("subscription_id"), resultSet.getLong("link_id"), resultSet.getString("url")),
-                chatId);
-
-        return rows.stream().map(this::toTrackedSubscription).toList();
+                arguments.toArray());
+        return toTrackedSubscriptions(rows);
     }
 
     /**
@@ -81,7 +89,11 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
                     """, subscriptionId, filter);
         }
 
-        return Optional.of(toTrackedSubscription(new SubscriptionRow(subscriptionId, linkId, url)));
+        SubscriptionRow row = new SubscriptionRow(subscriptionId, linkId, url);
+        return Optional.of(toTrackedSubscription(
+                row,
+                findTagsBySubscriptionIds(List.of(subscriptionId)),
+                findFiltersBySubscriptionIds(List.of(subscriptionId))));
     }
 
     /**
@@ -95,7 +107,10 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
             return Optional.empty();
         }
 
-        TrackedSubscription removed = toTrackedSubscription(row);
+        TrackedSubscription removed = toTrackedSubscription(
+                row,
+                findTagsBySubscriptionIds(List.of(row.subscriptionId())),
+                findFiltersBySubscriptionIds(List.of(row.subscriptionId())));
         jdbcTemplate.update("DELETE FROM subscriptions WHERE id = ?", row.subscriptionId());
         return Optional.of(removed);
     }
@@ -104,39 +119,75 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
      * {@inheritDoc}
      */
     @Override
-    public List<TrackedLinkSnapshot> findAllTrackedLinks() {
-        List<TrackedLinkRow> rows = jdbcTemplate.query(
+    @Transactional(readOnly = true)
+    public List<TrackedLinkSnapshot> findAllTrackedLinks(RepositoryPageRequest pageRequest) {
+        String linksSql = applyPagination(
+                """
+                SELECT DISTINCT links.id AS link_id,
+                                links.url AS url
+                FROM links
+                JOIN subscriptions ON subscriptions.link_id = links.id
+                ORDER BY links.id
+                """,
+                pageRequest);
+        List<LinkRow> linkRows = jdbcTemplate.query(
+                linksSql,
+                (resultSet, rowNum) -> new LinkRow(resultSet.getLong("link_id"), resultSet.getString("url")),
+                paginationArguments(pageRequest).toArray());
+        if (linkRows.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> linkIds = linkRows.stream().map(LinkRow::linkId).toList();
+        String placeholders = placeholders(linkIds.size());
+        List<LinkChatRow> chatRows = jdbcTemplate.query(
                 """
                 SELECT links.id AS link_id,
-                       links.url AS url,
                        chats.chat_id AS chat_id
                 FROM links
                 JOIN subscriptions ON subscriptions.link_id = links.id
                 JOIN chats ON chats.id = subscriptions.chat_id
+                WHERE links.id IN (%s)
                 ORDER BY links.id, chats.chat_id
-                """,
-                (resultSet, rowNum) -> new TrackedLinkRow(
-                        resultSet.getLong("link_id"), resultSet.getString("url"), resultSet.getLong("chat_id")));
+                """
+                        .formatted(placeholders),
+                (resultSet, rowNum) -> new LinkChatRow(resultSet.getLong("link_id"), resultSet.getLong("chat_id")),
+                linkIds.toArray());
 
-        Map<Long, AggregatedTrackedLink> aggregatedByLinkId = new LinkedHashMap<>();
-        for (TrackedLinkRow row : rows) {
-            AggregatedTrackedLink aggregated = aggregatedByLinkId.computeIfAbsent(
-                    row.linkId(), ignored -> new AggregatedTrackedLink(row.url(), new ArrayList<>()));
-            aggregated.chatIds().add(row.chatId());
+        Map<Long, List<Long>> chatIdsByLinkId = new HashMap<>();
+        for (LinkChatRow row : chatRows) {
+            chatIdsByLinkId.computeIfAbsent(row.linkId(), ignored -> new ArrayList<>()).add(row.chatId());
         }
 
-        return aggregatedByLinkId.entrySet().stream()
-                .map(entry -> new TrackedLinkSnapshot(
-                        entry.getKey(), entry.getValue().url(), entry.getValue().chatIds()))
+        List<TrackedLinkSnapshot> snapshots = new ArrayList<>(linkRows.size());
+        for (LinkRow row : linkRows) {
+            snapshots.add(new TrackedLinkSnapshot(
+                    row.linkId(), row.url(), List.copyOf(chatIdsByLinkId.getOrDefault(row.linkId(), List.of()))));
+        }
+        return snapshots;
+    }
+
+    private List<TrackedSubscription> toTrackedSubscriptions(List<SubscriptionRow> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        List<Long> subscriptionIds = rows.stream().map(SubscriptionRow::subscriptionId).toList();
+        Map<Long, List<String>> tagsBySubscriptionId = findTagsBySubscriptionIds(subscriptionIds);
+        Map<Long, List<String>> filtersBySubscriptionId = findFiltersBySubscriptionIds(subscriptionIds);
+        return rows.stream()
+                .map(row -> toTrackedSubscription(row, tagsBySubscriptionId, filtersBySubscriptionId))
                 .toList();
     }
 
-    private TrackedSubscription toTrackedSubscription(SubscriptionRow row) {
+    private TrackedSubscription toTrackedSubscription(
+            SubscriptionRow row,
+            Map<Long, List<String>> tagsBySubscriptionId,
+            Map<Long, List<String>> filtersBySubscriptionId) {
         return new TrackedSubscription(
                 row.linkId(),
                 row.url(),
-                findTagsBySubscriptionId(row.subscriptionId()),
-                findFiltersBySubscriptionId(row.subscriptionId()));
+                List.copyOf(tagsBySubscriptionId.getOrDefault(row.subscriptionId(), List.of())),
+                List.copyOf(filtersBySubscriptionId.getOrDefault(row.subscriptionId(), List.of())));
     }
 
     private Optional<Long> findInternalChatId(long externalChatId) {
@@ -172,23 +223,53 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
         return jdbcTemplate.queryForObject("SELECT id FROM tags WHERE name = ?", Long.class, tagName);
     }
 
-    private List<String> findTagsBySubscriptionId(long subscriptionId) {
-        return jdbcTemplate.query("""
+    private Map<Long, List<String>> findTagsBySubscriptionIds(List<Long> subscriptionIds) {
+        if (subscriptionIds.isEmpty()) {
+            return Map.of();
+        }
+        List<TagRow> rows = jdbcTemplate.query(
+                """
                 SELECT tags.name
+                     , subscription_tags.subscription_id AS subscription_id
                 FROM subscription_tags
                 JOIN tags ON tags.id = subscription_tags.tag_id
-                WHERE subscription_tags.subscription_id = ?
-                ORDER BY tags.name
-                """, (resultSet, rowNum) -> resultSet.getString("name"), subscriptionId);
+                WHERE subscription_tags.subscription_id IN (%s)
+                ORDER BY subscription_tags.subscription_id, tags.name
+                """
+                        .formatted(placeholders(subscriptionIds.size())),
+                (resultSet, rowNum) -> new TagRow(resultSet.getLong("subscription_id"), resultSet.getString("name")),
+                subscriptionIds.toArray());
+        Map<Long, List<String>> tagsBySubscriptionId = new HashMap<>();
+        for (TagRow row : rows) {
+            tagsBySubscriptionId
+                    .computeIfAbsent(row.subscriptionId(), ignored -> new ArrayList<>())
+                    .add(row.tagName());
+        }
+        return tagsBySubscriptionId;
     }
 
-    private List<String> findFiltersBySubscriptionId(long subscriptionId) {
-        return jdbcTemplate.query("""
+    private Map<Long, List<String>> findFiltersBySubscriptionIds(List<Long> subscriptionIds) {
+        if (subscriptionIds.isEmpty()) {
+            return Map.of();
+        }
+        List<FilterRow> rows = jdbcTemplate.query(
+                """
                 SELECT value
+                     , subscription_id
                 FROM subscription_filters
-                WHERE subscription_id = ?
-                ORDER BY id
-                """, (resultSet, rowNum) -> resultSet.getString("value"), subscriptionId);
+                WHERE subscription_id IN (%s)
+                ORDER BY subscription_id, id
+                """
+                        .formatted(placeholders(subscriptionIds.size())),
+                (resultSet, rowNum) -> new FilterRow(resultSet.getLong("subscription_id"), resultSet.getString("value")),
+                subscriptionIds.toArray());
+        Map<Long, List<String>> filtersBySubscriptionId = new HashMap<>();
+        for (FilterRow row : rows) {
+            filtersBySubscriptionId
+                    .computeIfAbsent(row.subscriptionId(), ignored -> new ArrayList<>())
+                    .add(row.value());
+        }
+        return filtersBySubscriptionId;
     }
 
     private Optional<SubscriptionRow> findSubscriptionByChatAndUrl(long chatId, String url) {
@@ -217,9 +298,39 @@ public class SqlScrapperLinkRepository implements ScrapperLinkRepository {
         return values;
     }
 
+    private String applyPagination(String sql, RepositoryPageRequest pageRequest) {
+        StringBuilder builder = new StringBuilder(sql);
+        if (pageRequest.bounded()) {
+            builder.append("\nLIMIT ?");
+        }
+        if (pageRequest.offset() > 0) {
+            builder.append("\nOFFSET ?");
+        }
+        return builder.toString();
+    }
+
+    private List<Object> paginationArguments(RepositoryPageRequest pageRequest) {
+        List<Object> arguments = new ArrayList<>();
+        if (pageRequest.bounded()) {
+            arguments.add(pageRequest.limit());
+        }
+        if (pageRequest.offset() > 0) {
+            arguments.add(pageRequest.offset());
+        }
+        return arguments;
+    }
+
+    private String placeholders(int size) {
+        return String.join(", ", Collections.nCopies(size, "?"));
+    }
+
     private record SubscriptionRow(long subscriptionId, long linkId, String url) {}
 
-    private record TrackedLinkRow(long linkId, String url, long chatId) {}
+    private record TagRow(long subscriptionId, String tagName) {}
 
-    private record AggregatedTrackedLink(String url, List<Long> chatIds) {}
+    private record FilterRow(long subscriptionId, String value) {}
+
+    private record LinkRow(long linkId, String url) {}
+
+    private record LinkChatRow(long linkId, long chatId) {}
 }

@@ -1,5 +1,6 @@
 package backend.academy.linktracker.scrapper.application.link;
 
+import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
 import java.util.List;
 
 /**
@@ -13,7 +14,18 @@ public interface ScrapperLinkUseCase {
      * @param chatId telegram chat identifier
      * @return immutable list of tracked links
      */
-    List<LinkView> listLinks(long chatId);
+    default List<LinkView> listLinks(long chatId) {
+        return listLinks(chatId, RepositoryPageRequest.all());
+    }
+
+    /**
+     * Returns links tracked for a single chat with optional page bounds.
+     *
+     * @param chatId telegram chat identifier
+     * @param pageRequest page bounds, unbounded when limit is zero
+     * @return immutable list of tracked links
+     */
+    List<LinkView> listLinks(long chatId, RepositoryPageRequest pageRequest);
 
     /**
      * Adds tracked link for a chat.
