@@ -5,6 +5,7 @@ WORKDIR /workspace
 
 COPY pom.xml ./
 COPY scrapper/pom.xml scrapper/pom.xml
+COPY migrations migrations
 COPY scrapper/src scrapper/src
 
 RUN mvn -f scrapper/pom.xml -DskipTests package

@@ -1,10 +1,30 @@
 services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: link-tracker-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-link_tracker}
+      POSTGRES_USER: ${POSTGRES_USER:-link_tracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-link_tracker}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-link_tracker} -d ${POSTGRES_DB:-link_tracker}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   scrapper:
     build:
       context: .
       dockerfile: scrapper/Dockerfile
     container_name: link-tracker-scrapper
     environment:
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/link_tracker}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-link_tracker}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-link_tracker}
+      APP_DATABASE_ACCESS_TYPE: ${APP_DATABASE_ACCESS_TYPE:-SQL}
       STACKOVERFLOW_KEY: ${STACKOVERFLOW_KEY}
       STACKOVERFLOW_ACCESS_KEY: ${STACKOVERFLOW_ACCESS_KEY}
       GITHUB_TOKEN: ${GITHUB_TOKEN}
@@ -21,6 +41,9 @@ services:
     ports:
       - "8081:8081"
       - "9091:9091"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   bot:
     build:
@@ -42,3 +65,6 @@ services:
       - "9090:9090"
     depends_on:
       - scrapper
+
+volumes:
+  postgres_data:
