@@ -1,0 +1,5 @@
+.git
+.idea
+**/target
+**/.flattened-pom.xml
+**/.DS_Store

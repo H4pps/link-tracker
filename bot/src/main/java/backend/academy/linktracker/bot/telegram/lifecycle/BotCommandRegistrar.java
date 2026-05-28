@@ -1,7 +1,7 @@
 package backend.academy.linktracker.bot.telegram.lifecycle;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.request.SetMyCommands;
 import lombok.RequiredArgsConstructor;

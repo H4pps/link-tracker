@@ -1,5 +1,6 @@
 package backend.academy.linktracker.bot.telegram.command.handlers;
 
+import backend.academy.linktracker.bot.telegram.command.CommandContext;
 import backend.academy.linktracker.bot.telegram.command.TelegramBotCommand;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandRegistry;
 import lombok.RequiredArgsConstructor;
@@ -19,11 +20,11 @@ class HelpCommandHandler implements TelegramCommandHandler {
     /**
      * Returns help text generated from registered commands.
      *
-     * @param messageText raw incoming message text
+     * @param context command processing context
      * @return auto-generated help message
      */
     @Override
-    public String handle(String messageText) {
+    public String handle(CommandContext context) {
         return commandRegistryProvider.getObject().helpMessage();
     }
 }

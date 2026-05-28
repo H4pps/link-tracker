@@ -1,8 +1,8 @@
 package backend.academy.linktracker.bot.telegram.lifecycle;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.TelegramProperties;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Update;
@@ -70,9 +70,9 @@ class TelegramBotUpdateListener {
             return;
         }
 
-        TelegramCommandProcessor.CommandProcessingResult processingResult = commandProcessor.process(message.text());
-
         long chatId = message.chat().id();
+        TelegramCommandProcessor.CommandProcessingResult processingResult =
+                commandProcessor.process(chatId, message.text());
         var response = telegramBot.execute(new SendMessage(chatId, processingResult.reply()));
         botLogger.logCommandProcessed(
                 chatId, processingResult.commandForLog(), processingResult.inputCommand(), response.isOk());

@@ -40,6 +40,7 @@
 
     <properties>
         <revision>0.0.1</revision>
+        <skipITs>true</skipITs>
 
         <java.version>25</java.version>
         <maven.version>3.9.12</maven.version>
@@ -52,6 +53,7 @@
         <commons-lang.version>3.20.0</commons-lang.version>
         <commons-text.version>1.15.0</commons-text.version>
         <datafaker.version>2.5.2</datafaker.version>
+        <error-prone-annotations.version>2.41.0</error-prone-annotations.version>
         <grpc.version>1.77.1</grpc.version>
         <guava.version>33.5.0-jre</guava.version>
         <instancio.version>5.5.1</instancio.version>
@@ -159,6 +161,11 @@
                 <version>${java-telegram-bot-api.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_annotations</artifactId>
+                <version>${error-prone-annotations.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.wiremock.integrations</groupId>
                 <artifactId>wiremock-spring-boot-standalone</artifactId>
                 <version>${wiremock-spring-boot.version}</version>
@@ -246,6 +253,7 @@
                     <version>${protobuf-maven-plugin.version}</version>
                     <configuration>
                         <protoc>${protobuf-java.version}</protoc>
+                        <sanctionedExecutablePath>${java.io.tmpdir}/protobuf-maven-plugin-executables</sanctionedExecutablePath>
                         <binaryMavenPlugins>
                             <binaryMavenPlugin>
                                 <groupId>io.grpc</groupId>
@@ -305,6 +313,9 @@
                         <printFailingErrors>true</printFailingErrors>
                         <linkXRef>false</linkXRef>
                         <outputDirectory>${project.reporting.outputDirectory}/pmd</outputDirectory>
+                        <excludeRoots>
+                            <excludeRoot>${project.build.directory}/generated-sources/protobuf</excludeRoot>
+                        </excludeRoots>
                         <rulesets>
                             <ruleset>pmd.xml</ruleset>
                         </rulesets>
@@ -431,5 +442,14 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>e2e</id>
+            <properties>
+                <skipITs>false</skipITs>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

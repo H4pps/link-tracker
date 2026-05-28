@@ -5,3 +5,8 @@ app:
     update-listener-sleep: 1s
     polling-enabled: false
     debug: true
+  scrapper:
+    mode: http
+    base-url: ${wiremock.server.baseUrl}
+    connect-timeout: 500ms
+    read-timeout: 500ms

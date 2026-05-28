@@ -7,10 +7,25 @@ spring:
   config:
     import: optional:file:.env[.properties],optional:file:bot/.env[.properties]
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level --- [%15.15t] %-40.40logger{39} : %msg %kvp%n%wEx"
+
 app:
+  grpc:
+    server:
+      port: ${APP_BOT_GRPC_SERVER_PORT:9090}
   telegram:
-    url: https://api.telegram.org/bot
+    url: ${APP_TELEGRAM_URL:https://api.telegram.org/bot}
     token: ${TELEGRAM_TOKEN} # Use env variable. DO NOT KEEP TOKEN HERE
-    update-listener-sleep: 1s
-    polling-enabled: true
-    debug: false
+    update-listener-sleep: ${APP_TELEGRAM_UPDATE_LISTENER_SLEEP:1s}
+    polling-enabled: ${APP_TELEGRAM_POLLING_ENABLED:true}
+    debug: ${APP_TELEGRAM_DEBUG:false}
+  scrapper:
+    mode: ${APP_SCRAPPER_MODE:grpc}
+    base-url: ${APP_SCRAPPER_BASE_URL:http://localhost:8081}
+    grpc-host: ${APP_SCRAPPER_GRPC_HOST:localhost}
+    grpc-port: ${APP_SCRAPPER_GRPC_PORT:9091}
+    grpc-deadline: ${APP_SCRAPPER_GRPC_DEADLINE:3s}
+    connect-timeout: ${APP_SCRAPPER_CONNECT_TIMEOUT:2s}
+    read-timeout: ${APP_SCRAPPER_READ_TIMEOUT:5s}

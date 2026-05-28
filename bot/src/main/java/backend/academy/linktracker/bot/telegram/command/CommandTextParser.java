@@ -11,7 +11,6 @@ class CommandTextParser {
 
     static final String COMMAND_SPLIT_REGEX = "\\s+";
     static final int COMMAND_SPLIT_LIMIT = 2;
-    private static final char COMMAND_PREFIX = '/';
     private static final char MENTION_SEPARATOR = '@';
 
     /**
@@ -22,14 +21,16 @@ class CommandTextParser {
      */
     ParsedCommand parse(String messageText) {
         if (messageText == null || messageText.isBlank()) {
-            return new ParsedCommand("", "");
+            return new ParsedCommand("", "", "");
         }
 
-        String firstToken = messageText.strip().split(COMMAND_SPLIT_REGEX, COMMAND_SPLIT_LIMIT)[0];
+        String[] parts = messageText.strip().split(COMMAND_SPLIT_REGEX, COMMAND_SPLIT_LIMIT);
+        String firstToken = parts[0];
         String commandToken = removeMention(firstToken);
         String normalizedCommand = normalizeCommand(commandToken);
+        String argument = parts.length < COMMAND_SPLIT_LIMIT ? "" : parts[1].strip();
 
-        return new ParsedCommand(firstToken, normalizedCommand);
+        return new ParsedCommand(firstToken, normalizedCommand, argument);
     }
 
     /**
@@ -55,7 +56,7 @@ class CommandTextParser {
      */
     private String normalizeCommand(String commandToken) {
         String commandWithoutPrefix = commandToken;
-        if (!commandWithoutPrefix.isEmpty() && commandWithoutPrefix.charAt(0) == COMMAND_PREFIX) {
+        if (!commandWithoutPrefix.isEmpty() && commandWithoutPrefix.charAt(0) == '/') {
             commandWithoutPrefix = commandWithoutPrefix.substring(1);
         }
 

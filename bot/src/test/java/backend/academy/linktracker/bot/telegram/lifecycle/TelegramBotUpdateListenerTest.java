@@ -6,9 +6,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import backend.academy.linktracker.bot.logging.BotLogger;
 import backend.academy.linktracker.bot.properties.TelegramProperties;
 import backend.academy.linktracker.bot.telegram.command.TelegramCommandProcessor;
-import backend.academy.linktracker.bot.telegram.logging.BotLogger;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.request.SendMessage;
@@ -55,7 +55,7 @@ class TelegramBotUpdateListenerTest {
 
     @Test
     void startCommandSendsReplyAndLogsProcessedCommand() {
-        when(commandProcessor.process("/start"))
+        when(commandProcessor.process(123L, "/start"))
                 .thenReturn(new TelegramCommandProcessor.CommandProcessingResult("reply", "start", "/start"));
 
         SendResponse sendResponse = org.mockito.Mockito.mock(SendResponse.class);
@@ -70,7 +70,7 @@ class TelegramBotUpdateListenerTest {
 
     @Test
     void helpCommandSendsReplyAndLogsProcessedCommand() {
-        when(commandProcessor.process("/help"))
+        when(commandProcessor.process(123L, "/help"))
                 .thenReturn(new TelegramCommandProcessor.CommandProcessingResult("help-reply", "help", "/help"));
 
         SendResponse sendResponse = org.mockito.Mockito.mock(SendResponse.class);
@@ -85,7 +85,7 @@ class TelegramBotUpdateListenerTest {
 
     @Test
     void unknownCommandWritesUnknownValueIntoLog() {
-        when(commandProcessor.process("hello"))
+        when(commandProcessor.process(123L, "hello"))
                 .thenReturn(new TelegramCommandProcessor.CommandProcessingResult(
                         TelegramCommandProcessor.UNKNOWN_REPLY,
                         TelegramCommandProcessor.UNKNOWN_COMMAND_NAME,
