@@ -226,8 +226,8 @@
                 <directory>src/main/resources</directory>
             </resource>
             <resource>
-                <directory>../migrations</directory>
                 <targetPath>migrations</targetPath>
+                <directory>../migrations</directory>
             </resource>
         </resources>
 
