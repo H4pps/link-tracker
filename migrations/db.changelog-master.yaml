@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-scrapper-storage
+      author: scrapper
+      changes:
+        - sqlFile:
+            path: changesets/001-create-scrapper-storage.sql
+            relativeToChangelogFile: true
