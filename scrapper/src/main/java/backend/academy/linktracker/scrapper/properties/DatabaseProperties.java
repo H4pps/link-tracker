@@ -23,6 +23,7 @@ public class DatabaseProperties {
      */
     public enum AccessType {
         SQL,
+        MEMORY,
         ORM
     }
 }
