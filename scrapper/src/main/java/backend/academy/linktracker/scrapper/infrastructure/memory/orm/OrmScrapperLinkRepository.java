@@ -9,6 +9,10 @@ import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.Lin
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.SubscriptionEntity;
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.SubscriptionFilterEntity;
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.TagEntity;
+import backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkChatRow;
+import backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkRow;
+import backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionFilterRow;
+import backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionTagRow;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import java.util.ArrayList;
@@ -107,28 +111,29 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
     @Override
     @Transactional(readOnly = true)
     public List<TrackedLinkSnapshot> findAllTrackedLinks(RepositoryPageRequest pageRequest) {
-        TypedQuery<Object[]> query = entityManager.createQuery(
+        TypedQuery<OrmLinkRow> query = entityManager.createQuery(
                 """
-                SELECT DISTINCT link.id, link.url
+                SELECT DISTINCT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkRow(
+                    link.id,
+                    link.url
+                )
                 FROM SubscriptionEntity subscription
                 JOIN subscription.link link
                 ORDER BY link.id
                 """,
-                Object[].class);
+                OrmLinkRow.class);
         applyPaging(query, pageRequest);
-        List<Object[]> linkRows = query.getResultList();
+        List<OrmLinkRow> linkRows = query.getResultList();
         if (linkRows.isEmpty()) {
             return List.of();
         }
 
-        List<Long> linkIds = linkRows.stream().map(row -> (Long) row[0]).toList();
+        List<Long> linkIds = linkRows.stream().map(OrmLinkRow::linkId).toList();
         Map<Long, List<Long>> chatIdsByLinkId = findChatIdsByLinkIds(linkIds);
         List<TrackedLinkSnapshot> snapshots = new ArrayList<>(linkRows.size());
-        for (Object[] row : linkRows) {
-            Long linkId = (Long) row[0];
-            String url = (String) row[1];
+        for (OrmLinkRow row : linkRows) {
             snapshots.add(new TrackedLinkSnapshot(
-                    linkId, url, List.copyOf(chatIdsByLinkId.getOrDefault(linkId, List.of()))));
+                    row.linkId(), row.url(), List.copyOf(chatIdsByLinkId.getOrDefault(row.linkId(), List.of()))));
         }
         return snapshots;
     }
@@ -235,23 +240,26 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
         if (subscriptionIds.isEmpty()) {
             return Map.of();
         }
-        List<Object[]> rows = entityManager
+        List<OrmSubscriptionTagRow> rows = entityManager
                 .createQuery(
                         """
-                        SELECT subscription.id, tag.name
+                        SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionTagRow(
+                            subscription.id,
+                            tag.name
+                        )
                         FROM SubscriptionEntity subscription
                         JOIN subscription.tags tag
                         WHERE subscription.id IN :subscriptionIds
                         ORDER BY subscription.id, tag.name
                         """,
-                        Object[].class)
+                        OrmSubscriptionTagRow.class)
                 .setParameter("subscriptionIds", subscriptionIds)
                 .getResultList();
         Map<Long, List<String>> tagsBySubscriptionId = new HashMap<>();
-        for (Object[] row : rows) {
+        for (OrmSubscriptionTagRow row : rows) {
             tagsBySubscriptionId
-                    .computeIfAbsent((Long) row[0], ignored -> new ArrayList<>())
-                    .add((String) row[1]);
+                    .computeIfAbsent(row.subscriptionId(), ignored -> new ArrayList<>())
+                    .add(row.tagName());
         }
         return tagsBySubscriptionId;
     }
@@ -260,45 +268,51 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
         if (subscriptionIds.isEmpty()) {
             return Map.of();
         }
-        List<Object[]> rows = entityManager
+        List<OrmSubscriptionFilterRow> rows = entityManager
                 .createQuery(
                         """
-                        SELECT filter.subscription.id, filter.value
+                        SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionFilterRow(
+                            filter.subscription.id,
+                            filter.value
+                        )
                         FROM SubscriptionFilterEntity filter
                         WHERE filter.subscription.id IN :subscriptionIds
                         ORDER BY filter.subscription.id, filter.id
                         """,
-                        Object[].class)
+                        OrmSubscriptionFilterRow.class)
                 .setParameter("subscriptionIds", subscriptionIds)
                 .getResultList();
         Map<Long, List<String>> filtersBySubscriptionId = new HashMap<>();
-        for (Object[] row : rows) {
+        for (OrmSubscriptionFilterRow row : rows) {
             filtersBySubscriptionId
-                    .computeIfAbsent((Long) row[0], ignored -> new ArrayList<>())
-                    .add((String) row[1]);
+                    .computeIfAbsent(row.subscriptionId(), ignored -> new ArrayList<>())
+                    .add(row.value());
         }
         return filtersBySubscriptionId;
     }
 
     private Map<Long, List<Long>> findChatIdsByLinkIds(List<Long> linkIds) {
-        List<Object[]> rows = entityManager
+        List<OrmLinkChatRow> rows = entityManager
                 .createQuery(
                         """
-                        SELECT link.id, chat.chatId
+                        SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkChatRow(
+                            link.id,
+                            chat.chatId
+                        )
                         FROM SubscriptionEntity subscription
                         JOIN subscription.link link
                         JOIN subscription.chat chat
                         WHERE link.id IN :linkIds
                         ORDER BY link.id, chat.chatId
                         """,
-                        Object[].class)
+                        OrmLinkChatRow.class)
                 .setParameter("linkIds", linkIds)
                 .getResultList();
         Map<Long, List<Long>> chatIdsByLinkId = new HashMap<>();
-        for (Object[] row : rows) {
+        for (OrmLinkChatRow row : rows) {
             chatIdsByLinkId
-                    .computeIfAbsent((Long) row[0], ignored -> new ArrayList<>())
-                    .add((Long) row[1]);
+                    .computeIfAbsent(row.linkId(), ignored -> new ArrayList<>())
+                    .add(row.chatId());
         }
         return chatIdsByLinkId;
     }
