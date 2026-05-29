@@ -14,7 +14,7 @@ import backend.academy.linktracker.scrapper.application.link.AddLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.RemoveLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
-import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.update.BotNotificationSender;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateNotification;

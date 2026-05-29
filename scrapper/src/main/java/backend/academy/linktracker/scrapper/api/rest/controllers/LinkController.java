@@ -8,7 +8,7 @@ import backend.academy.linktracker.scrapper.application.link.AddLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.RemoveLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
-import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;

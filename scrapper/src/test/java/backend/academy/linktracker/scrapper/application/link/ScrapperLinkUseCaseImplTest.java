@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;

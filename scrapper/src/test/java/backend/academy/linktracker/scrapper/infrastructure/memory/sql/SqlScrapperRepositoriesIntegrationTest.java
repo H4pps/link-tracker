@@ -3,9 +3,10 @@ package backend.academy.linktracker.scrapper.infrastructure.memory.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import backend.academy.linktracker.scrapper.ScrapperApplication;
-import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
@@ -13,6 +14,7 @@ import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMem
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryTagRepository;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -274,6 +276,7 @@ class SqlScrapperRepositoriesIntegrationTest {
     void sqlModeLoadsSqlRepositoriesAndSkipsInMemoryBeans() {
         assertSingleRepositoryImplementation(ScrapperChatRepository.class, "SqlScrapperChatRepository");
         assertSingleRepositoryImplementation(ScrapperLinkRepository.class, "SqlScrapperLinkRepository");
+        assertSingleRepositoryImplementation(TagRepository.class, "SqlTagRepository");
         assertSingleRepositoryImplementation(LinkUpdateCheckpointRepository.class, "SqlLinkUpdateCheckpointRepository");
 
         assertThat(applicationContext.getBeansOfType(InMemoryScrapperStorage.class))
@@ -283,6 +286,8 @@ class SqlScrapperRepositoriesIntegrationTest {
         assertThat(applicationContext.getBeansOfType(InMemoryScrapperLinkRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(InMemoryLinkUpdateCheckpointRepository.class))
+                .isEmpty();
+        assertThat(applicationContext.getBeansOfType(InMemoryTagRepository.class))
                 .isEmpty();
     }
 

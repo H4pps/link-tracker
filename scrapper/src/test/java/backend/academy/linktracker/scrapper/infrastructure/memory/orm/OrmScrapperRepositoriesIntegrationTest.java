@@ -3,9 +3,10 @@ package backend.academy.linktracker.scrapper.infrastructure.memory.orm;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import backend.academy.linktracker.scrapper.ScrapperApplication;
-import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
@@ -13,9 +14,11 @@ import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMem
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryTagRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlLinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlTagRepository;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
@@ -277,6 +280,7 @@ class OrmScrapperRepositoriesIntegrationTest {
     void ormModeLoadsOnlyOrmRepositories() {
         assertSingleRepositoryImplementation(ScrapperChatRepository.class, "OrmScrapperChatRepository");
         assertSingleRepositoryImplementation(ScrapperLinkRepository.class, "OrmScrapperLinkRepository");
+        assertSingleRepositoryImplementation(TagRepository.class, "OrmTagRepository");
         assertSingleRepositoryImplementation(LinkUpdateCheckpointRepository.class, "OrmLinkUpdateCheckpointRepository");
 
         assertThat(applicationContext.getBeansOfType(SqlScrapperChatRepository.class))
@@ -284,6 +288,8 @@ class OrmScrapperRepositoriesIntegrationTest {
         assertThat(applicationContext.getBeansOfType(SqlScrapperLinkRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(SqlLinkUpdateCheckpointRepository.class))
+                .isEmpty();
+        assertThat(applicationContext.getBeansOfType(SqlTagRepository.class))
                 .isEmpty();
 
         assertThat(applicationContext.getBeansOfType(InMemoryScrapperStorage.class))
@@ -293,6 +299,8 @@ class OrmScrapperRepositoriesIntegrationTest {
         assertThat(applicationContext.getBeansOfType(InMemoryScrapperLinkRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(InMemoryLinkUpdateCheckpointRepository.class))
+                .isEmpty();
+        assertThat(applicationContext.getBeansOfType(InMemoryTagRepository.class))
                 .isEmpty();
     }
 

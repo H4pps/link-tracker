@@ -1,6 +1,6 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory.sql;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;

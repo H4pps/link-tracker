@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.application.repository;
+package backend.academy.linktracker.scrapper.application.chat;
 
 /**
  * Repository boundary for chat registration state.

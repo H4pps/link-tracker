@@ -1,6 +1,6 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory.orm;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.ChatEntity;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;

@@ -1,7 +1,7 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory.orm;
 
-import backend.academy.linktracker.scrapper.application.repository.RepositoryPageRequest;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.ChatEntity;

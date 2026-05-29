@@ -14,8 +14,8 @@ import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCaseImpl;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;

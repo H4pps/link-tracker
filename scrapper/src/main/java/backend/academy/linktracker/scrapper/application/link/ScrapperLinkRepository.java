@@ -1,5 +1,6 @@
-package backend.academy.linktracker.scrapper.application.repository;
+package backend.academy.linktracker.scrapper.application.link;
 
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.List;

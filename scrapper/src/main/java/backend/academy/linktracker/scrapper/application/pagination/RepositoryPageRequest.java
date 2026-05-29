@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.application.repository;
+package backend.academy.linktracker.scrapper.application.pagination;
 
 /**
  * Repository-level page request abstraction independent from specific storage APIs.
