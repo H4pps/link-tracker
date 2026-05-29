@@ -8,8 +8,8 @@ import backend.academy.linktracker.grpc.ListLinksRequest;
 import backend.academy.linktracker.grpc.ListLinksResponse;
 import backend.academy.linktracker.grpc.ListTagsRequest;
 import backend.academy.linktracker.grpc.ListTagsResponse;
-import backend.academy.linktracker.grpc.RenameTagRequest;
 import backend.academy.linktracker.grpc.RemoveLinkRequest;
+import backend.academy.linktracker.grpc.RenameTagRequest;
 import backend.academy.linktracker.grpc.ScrapperServiceGrpc;
 import backend.academy.linktracker.grpc.TagIdRequest;
 import backend.academy.linktracker.grpc.TagNameRequest;
@@ -66,9 +66,7 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
                     ? scrapperLinkUseCase.listLinks(
                             request.getChatId(), new RepositoryPageRequest(request.getLimit(), request.getOffset()))
                     : scrapperLinkUseCase.listLinks(request.getChatId());
-            List<Link> links = linkViews.stream()
-                    .map(this::toGrpcLink)
-                    .toList();
+            List<Link> links = linkViews.stream().map(this::toGrpcLink).toList();
             responseObserver.onNext(ListLinksResponse.newBuilder()
                     .addAllLinks(links)
                     .setSize(links.size())
@@ -126,7 +124,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
      * Creates standalone tag over gRPC.
      */
     @Override
-    public void createTag(TagNameRequest request, StreamObserver<backend.academy.linktracker.grpc.Tag> responseObserver) {
+    public void createTag(
+            TagNameRequest request, StreamObserver<backend.academy.linktracker.grpc.Tag> responseObserver) {
         try {
             backend.academy.linktracker.scrapper.domain.model.Tag created = tagUseCase.createTag(request.getName());
             responseObserver.onNext(toGrpcTag(created));
@@ -134,7 +133,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (AlreadyExistsException | IllegalArgumentException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("create-tag failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("create-tag failed").asRuntimeException());
         }
     }
 
@@ -150,7 +150,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (NotFoundException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("get-tag failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("get-tag failed").asRuntimeException());
         }
     }
 
@@ -167,7 +168,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (NotFoundException | IllegalArgumentException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("get-tag-by-name failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("get-tag-by-name failed").asRuntimeException());
         }
     }
 
@@ -189,7 +191,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (IllegalArgumentException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("list-tags failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("list-tags failed").asRuntimeException());
         }
     }
 
@@ -207,7 +210,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (AlreadyExistsException | NotFoundException | IllegalArgumentException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("rename-tag failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("rename-tag failed").asRuntimeException());
         }
     }
 
@@ -223,7 +227,8 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
         } catch (NotFoundException | ConflictException exception) {
             responseObserver.onError(mapToStatus(exception).asRuntimeException());
         } catch (RuntimeException exception) {
-            responseObserver.onError(Status.INTERNAL.withDescription("delete-tag failed").asRuntimeException());
+            responseObserver.onError(
+                    Status.INTERNAL.withDescription("delete-tag failed").asRuntimeException());
         }
     }
 
@@ -236,8 +241,7 @@ public class ScrapperGrpcServiceEndpoint extends ScrapperServiceGrpc.ScrapperSer
                 .build();
     }
 
-    private backend.academy.linktracker.grpc.Tag toGrpcTag(
-            backend.academy.linktracker.scrapper.domain.model.Tag tag) {
+    private backend.academy.linktracker.grpc.Tag toGrpcTag(backend.academy.linktracker.scrapper.domain.model.Tag tag) {
         return backend.academy.linktracker.grpc.Tag.newBuilder()
                 .setId(tag.id())
                 .setName(tag.name())

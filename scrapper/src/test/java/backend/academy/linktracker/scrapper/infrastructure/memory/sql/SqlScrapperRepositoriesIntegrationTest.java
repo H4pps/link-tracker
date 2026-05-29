@@ -3,9 +3,9 @@ package backend.academy.linktracker.scrapper.infrastructure.memory.sql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import backend.academy.linktracker.scrapper.ScrapperApplication;
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
@@ -198,19 +198,22 @@ class SqlScrapperRepositoriesIntegrationTest {
                 .addIfAbsent(900L, "https://example.com/3", List.of("tag-6", "tag-5"), List.of("f-6", "f-5"))
                 .orElseThrow();
 
-        List<TrackedSubscription> secondPage =
-                linkRepository.findAllByChatId(900L, new RepositoryPageRequest(2, 1));
+        List<TrackedSubscription> secondPage = linkRepository.findAllByChatId(900L, new RepositoryPageRequest(2, 1));
 
         assertThat(secondPage)
                 .containsExactly(
-                        new TrackedSubscription(second.id(), second.url(), List.of("tag-3", "tag-4"), List.of("f-4", "f-3")),
-                        new TrackedSubscription(third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
-        assertThat(linkRepository.findAllByChatId(900L))
-                .containsExactly(
-                        new TrackedSubscription(first.id(), first.url(), List.of("tag-1", "tag-2"), List.of("f-2", "f-1")),
                         new TrackedSubscription(
                                 second.id(), second.url(), List.of("tag-3", "tag-4"), List.of("f-4", "f-3")),
-                        new TrackedSubscription(third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
+                        new TrackedSubscription(
+                                third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
+        assertThat(linkRepository.findAllByChatId(900L))
+                .containsExactly(
+                        new TrackedSubscription(
+                                first.id(), first.url(), List.of("tag-1", "tag-2"), List.of("f-2", "f-1")),
+                        new TrackedSubscription(
+                                second.id(), second.url(), List.of("tag-3", "tag-4"), List.of("f-4", "f-3")),
+                        new TrackedSubscription(
+                                third.id(), third.url(), List.of("tag-5", "tag-6"), List.of("f-6", "f-5")));
     }
 
     @Test

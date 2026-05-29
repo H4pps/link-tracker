@@ -1,8 +1,7 @@
 package backend.academy.linktracker.scrapper.application.link;
 
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;

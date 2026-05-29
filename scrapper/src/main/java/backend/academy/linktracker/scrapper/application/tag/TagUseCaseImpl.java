@@ -1,11 +1,6 @@
 package backend.academy.linktracker.scrapper.application.tag;
 
 import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
-import backend.academy.linktracker.scrapper.application.tag.TagDeleteResult;
-import backend.academy.linktracker.scrapper.application.tag.TagDeleteStatus;
-import backend.academy.linktracker.scrapper.application.tag.TagRenameResult;
-import backend.academy.linktracker.scrapper.application.tag.TagRenameStatus;
-import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.ConflictException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;

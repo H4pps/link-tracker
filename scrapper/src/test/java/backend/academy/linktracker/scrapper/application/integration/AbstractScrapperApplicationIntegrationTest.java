@@ -96,7 +96,8 @@ abstract class AbstractScrapperApplicationIntegrationTest {
                 .isInstanceOf(AlreadyExistsException.class)
                 .hasMessage("Chat already registered: " + chatId);
 
-        LinkView first = linkUseCase.addLink(chatId, new AddLinkCommand(firstUrl, List.of("z", "a"), List.of("f2", "f1")));
+        LinkView first =
+                linkUseCase.addLink(chatId, new AddLinkCommand(firstUrl, List.of("z", "a"), List.of("f2", "f1")));
         LinkView second =
                 linkUseCase.addLink(chatId, new AddLinkCommand(secondUrl, List.of("d", "c"), List.of("f4", "f3")));
 
@@ -182,7 +183,8 @@ abstract class AbstractScrapperApplicationIntegrationTest {
         externalTimestamp.set(changedTimestamp);
         schedulerUseCase.checkUpdates();
 
-        ArgumentCaptor<LinkUpdateNotification> notificationCaptor = ArgumentCaptor.forClass(LinkUpdateNotification.class);
+        ArgumentCaptor<LinkUpdateNotification> notificationCaptor =
+                ArgumentCaptor.forClass(LinkUpdateNotification.class);
         verify(botNotificationSender, times(2)).send(notificationCaptor.capture());
         assertThat(notificationCaptor.getAllValues())
                 .containsExactlyInAnyOrder(
@@ -191,7 +193,8 @@ abstract class AbstractScrapperApplicationIntegrationTest {
                                 sharedUrl,
                                 "Обнаружены изменения",
                                 List.of(firstChatId, secondChatId)),
-                        new LinkUpdateNotification(unique.id(), uniqueUrl, "Обнаружены изменения", List.of(thirdChatId)));
+                        new LinkUpdateNotification(
+                                unique.id(), uniqueUrl, "Обнаружены изменения", List.of(thirdChatId)));
 
         assertThat(checkpointRepository.findByUrl(sharedUrl)).contains(changedTimestamp);
         assertThat(checkpointRepository.findByUrl(uniqueUrl)).contains(changedTimestamp);

@@ -21,18 +21,12 @@ public class OrmLinkUpdateCheckpointRepository implements LinkUpdateCheckpointRe
     @Override
     @Transactional(readOnly = true)
     public Optional<Instant> findByUrl(String url) {
-        return entityManager
-                .createQuery(
-                        """
+        return entityManager.createQuery("""
                         SELECT checkpoint.lastSeenExternalUpdatedAt
                         FROM LinkUpdateCheckpointEntity checkpoint
                         JOIN checkpoint.link link
                         WHERE link.url = :url
-                        """,
-                        Instant.class)
-                .setParameter("url", url)
-                .getResultList()
-                .stream()
+                        """, Instant.class).setParameter("url", url).getResultList().stream()
                 .findFirst();
     }
 

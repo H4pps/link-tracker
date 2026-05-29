@@ -17,10 +17,10 @@ import backend.academy.linktracker.grpc.RenameTagRequest;
 import backend.academy.linktracker.grpc.ScrapperServiceGrpc;
 import backend.academy.linktracker.grpc.TagIdRequest;
 import backend.academy.linktracker.grpc.TagNameRequest;
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.tag.TagUseCase;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.ConflictException;
@@ -118,10 +118,8 @@ class ScrapperGrpcServiceEndpointTest {
         when(linkUseCase.listLinks(1L))
                 .thenReturn(List.of(new LinkView(10L, "https://github.com/a/b", List.of("x"), List.of())));
 
-        var response = stub.listLinks(ListLinksRequest.newBuilder()
-                .setChatId(1L)
-                .setOffset(5L)
-                .build());
+        var response = stub.listLinks(
+                ListLinksRequest.newBuilder().setChatId(1L).setOffset(5L).build());
 
         assertThat(response.getSize()).isEqualTo(1);
         verify(linkUseCase).listLinks(1L);
@@ -149,7 +147,8 @@ class ScrapperGrpcServiceEndpointTest {
         when(tagUseCase.createTag("infra"))
                 .thenReturn(new backend.academy.linktracker.scrapper.domain.model.Tag(7L, "infra"));
 
-        var response = stub.createTag(TagNameRequest.newBuilder().setName("infra").build());
+        var response =
+                stub.createTag(TagNameRequest.newBuilder().setName("infra").build());
 
         assertThat(response.getId()).isEqualTo(7L);
         assertThat(response.getName()).isEqualTo("infra");
@@ -161,10 +160,8 @@ class ScrapperGrpcServiceEndpointTest {
         when(tagUseCase.listTags(new RepositoryPageRequest(2, 3)))
                 .thenReturn(List.of(new backend.academy.linktracker.scrapper.domain.model.Tag(9L, "ops")));
 
-        var response = stub.listTags(ListTagsRequest.newBuilder()
-                .setLimit(2)
-                .setOffset(3)
-                .build());
+        var response = stub.listTags(
+                ListTagsRequest.newBuilder().setLimit(2).setOffset(3).build());
 
         assertThat(response.getSize()).isEqualTo(1);
         assertThat(response.getTags(0).getId()).isEqualTo(9L);
@@ -173,11 +170,11 @@ class ScrapperGrpcServiceEndpointTest {
 
     @Test
     void listTagsMapsNegativePagingToInvalidArgument() {
-        assertThatThrownBy(() -> stub.listTags(ListTagsRequest.newBuilder()
-                        .setLimit(-1)
-                        .build()))
+        assertThatThrownBy(() ->
+                        stub.listTags(ListTagsRequest.newBuilder().setLimit(-1).build()))
                 .isInstanceOf(StatusRuntimeException.class)
-                .extracting(error -> ((StatusRuntimeException) error).getStatus().getCode())
+                .extracting(
+                        error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
 
         verify(tagUseCase, never()).listTags(any());
@@ -187,9 +184,11 @@ class ScrapperGrpcServiceEndpointTest {
     void getTagMapsNotFoundToGrpcStatus() {
         when(tagUseCase.getTag(77L)).thenThrow(new NotFoundException("missing"));
 
-        assertThatThrownBy(() -> stub.getTag(TagIdRequest.newBuilder().setTagId(77L).build()))
+        assertThatThrownBy(() ->
+                        stub.getTag(TagIdRequest.newBuilder().setTagId(77L).build()))
                 .isInstanceOf(StatusRuntimeException.class)
-                .extracting(error -> ((StatusRuntimeException) error).getStatus().getCode())
+                .extracting(
+                        error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.NOT_FOUND);
     }
 
@@ -203,15 +202,15 @@ class ScrapperGrpcServiceEndpointTest {
                         .setName("dup")
                         .build()))
                 .isInstanceOf(StatusRuntimeException.class)
-                .extracting(error -> ((StatusRuntimeException) error).getStatus().getCode())
+                .extracting(
+                        error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.ALREADY_EXISTS);
 
-        assertThatThrownBy(() -> stub.renameTag(RenameTagRequest.newBuilder()
-                        .setTagId(10L)
-                        .setName(" ")
-                        .build()))
+        assertThatThrownBy(() -> stub.renameTag(
+                        RenameTagRequest.newBuilder().setTagId(10L).setName(" ").build()))
                 .isInstanceOf(StatusRuntimeException.class)
-                .extracting(error -> ((StatusRuntimeException) error).getStatus().getCode())
+                .extracting(
+                        error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
 
@@ -219,9 +218,11 @@ class ScrapperGrpcServiceEndpointTest {
     void deleteTagMapsAttachedConflictToFailedPrecondition() {
         doThrow(new ConflictException("attached")).when(tagUseCase).deleteTag(33L);
 
-        assertThatThrownBy(() -> stub.deleteTag(TagIdRequest.newBuilder().setTagId(33L).build()))
+        assertThatThrownBy(() ->
+                        stub.deleteTag(TagIdRequest.newBuilder().setTagId(33L).build()))
                 .isInstanceOf(StatusRuntimeException.class)
-                .extracting(error -> ((StatusRuntimeException) error).getStatus().getCode())
+                .extracting(
+                        error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.FAILED_PRECONDITION);
     }
 }

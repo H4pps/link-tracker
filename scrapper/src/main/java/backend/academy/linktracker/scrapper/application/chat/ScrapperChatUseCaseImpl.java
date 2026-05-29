@@ -1,6 +1,5 @@
 package backend.academy.linktracker.scrapper.application.chat;
 
-import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;

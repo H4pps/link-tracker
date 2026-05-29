@@ -2,9 +2,9 @@ package backend.academy.linktracker.scrapper.infrastructure.memory.tag;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.tag.TagDeleteStatus;
 import backend.academy.linktracker.scrapper.application.tag.TagRenameStatus;
 import backend.academy.linktracker.scrapper.application.tag.TagRepository;
@@ -95,8 +95,7 @@ abstract class AbstractTagRepositoryIntegrationTest {
                 .orElseThrow();
 
         assertThat(tracked.tags()).containsExactly("reusable");
-        assertThat(tagRepository.findByName("reusable"))
-                .contains(new Tag(reusable.id(), "reusable"));
+        assertThat(tagRepository.findByName("reusable")).contains(new Tag(reusable.id(), "reusable"));
         assertThat(tagNameRowCount("reusable")).isEqualTo(1);
 
         Tag deletable = tagRepository.create("deletable").orElseThrow();

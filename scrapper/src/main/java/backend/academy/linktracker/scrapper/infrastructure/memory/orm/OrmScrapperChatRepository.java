@@ -31,7 +31,8 @@ public class OrmScrapperChatRepository implements ScrapperChatRepository {
     @Override
     @Transactional
     public boolean delete(long chatId) {
-        int deleted = entityManager.createQuery("DELETE FROM ChatEntity chat WHERE chat.chatId = :chatId")
+        int deleted = entityManager
+                .createQuery("DELETE FROM ChatEntity chat WHERE chat.chatId = :chatId")
                 .setParameter("chatId", chatId)
                 .executeUpdate();
         return deleted > 0;
@@ -40,8 +41,8 @@ public class OrmScrapperChatRepository implements ScrapperChatRepository {
     @Override
     @Transactional(readOnly = true)
     public boolean exists(long chatId) {
-        Long count = entityManager.createQuery(
-                        "SELECT COUNT(chat) FROM ChatEntity chat WHERE chat.chatId = :chatId", Long.class)
+        Long count = entityManager
+                .createQuery("SELECT COUNT(chat) FROM ChatEntity chat WHERE chat.chatId = :chatId", Long.class)
                 .setParameter("chatId", chatId)
                 .getSingleResult();
         return count != null && count > 0;

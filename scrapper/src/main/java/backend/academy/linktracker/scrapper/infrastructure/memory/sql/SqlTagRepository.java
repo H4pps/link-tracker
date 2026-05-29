@@ -7,7 +7,6 @@ import backend.academy.linktracker.scrapper.application.tag.TagRenameResult;
 import backend.academy.linktracker.scrapper.application.tag.TagRenameStatus;
 import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.domain.model.Tag;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -76,17 +75,15 @@ public class SqlTagRepository implements TagRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Tag> findAll(RepositoryPageRequest pageRequest) {
-        String sql = applyPagination(
-                """
+        String sql = SqlPagination.apply("""
                 SELECT id, name
                 FROM tags
                 ORDER BY id
-                """,
-                pageRequest);
+                """, pageRequest);
         return jdbcTemplate.query(
                 sql,
                 (resultSet, rowNum) -> new Tag(resultSet.getLong("id"), resultSet.getString("name")),
-                paginationArguments(pageRequest).toArray());
+                SqlPagination.arguments(pageRequest).toArray());
     }
 
     /**
@@ -95,8 +92,7 @@ public class SqlTagRepository implements TagRepository {
     @Override
     @Transactional
     public TagRenameResult rename(long id, String name) {
-        int updated = jdbcTemplate.update(
-                """
+        int updated = jdbcTemplate.update("""
                 UPDATE tags
                 SET name = ?
                 WHERE id = ?
@@ -106,11 +102,7 @@ public class SqlTagRepository implements TagRepository {
                       WHERE duplicate.name = ?
                         AND duplicate.id <> ?
                   )
-                """,
-                name,
-                id,
-                name,
-                id);
+                """, name, id, name, id);
         if (updated > 0) {
             return new TagRenameResult(TagRenameStatus.RENAMED);
         }
@@ -125,8 +117,7 @@ public class SqlTagRepository implements TagRepository {
     @Override
     @Transactional
     public TagDeleteResult deleteIfUnused(long id) {
-        int deleted = jdbcTemplate.update(
-                """
+        int deleted = jdbcTemplate.update("""
                 DELETE FROM tags
                 WHERE id = ?
                   AND NOT EXISTS (
@@ -134,36 +125,12 @@ public class SqlTagRepository implements TagRepository {
                       FROM subscription_tags
                       WHERE tag_id = ?
                   )
-                """,
-                id,
-                id);
+                """, id, id);
         if (deleted > 0) {
             return new TagDeleteResult(TagDeleteStatus.DELETED);
         }
         return findById(id).isPresent()
                 ? new TagDeleteResult(TagDeleteStatus.ATTACHED)
                 : new TagDeleteResult(TagDeleteStatus.MISSING);
-    }
-
-    private String applyPagination(String sql, RepositoryPageRequest pageRequest) {
-        StringBuilder builder = new StringBuilder(sql);
-        if (pageRequest.bounded()) {
-            builder.append("\nLIMIT ?");
-        }
-        if (pageRequest.offset() > 0) {
-            builder.append("\nOFFSET ?");
-        }
-        return builder.toString();
-    }
-
-    private List<Object> paginationArguments(RepositoryPageRequest pageRequest) {
-        List<Object> arguments = new ArrayList<>();
-        if (pageRequest.bounded()) {
-            arguments.add(pageRequest.limit());
-        }
-        if (pageRequest.offset() > 0) {
-            arguments.add(pageRequest.offset());
-        }
-        return arguments;
     }
 }

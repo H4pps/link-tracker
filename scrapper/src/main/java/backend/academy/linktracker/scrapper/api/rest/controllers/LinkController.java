@@ -49,9 +49,7 @@ public class LinkController {
         List<LinkView> linkViews = limit == null || limit == 0
                 ? scrapperLinkUseCase.listLinks(chatId)
                 : scrapperLinkUseCase.listLinks(chatId, new RepositoryPageRequest(limit, offset));
-        List<LinkResponse> links = linkViews.stream()
-                .map(this::toResponse)
-                .toList();
+        List<LinkResponse> links = linkViews.stream().map(this::toResponse).toList();
         ListLinksResponse response = new ListLinksResponse(links, links.size());
         return ResponseEntity.ok(response);
     }

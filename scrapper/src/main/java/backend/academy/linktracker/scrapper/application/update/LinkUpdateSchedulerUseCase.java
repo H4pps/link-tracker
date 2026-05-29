@@ -4,8 +4,8 @@ import backend.academy.linktracker.scrapper.application.external.ExternalSourceE
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceReader;
 import backend.academy.linktracker.scrapper.application.external.LinkSource;
 import backend.academy.linktracker.scrapper.application.external.LinkSourceResolver;
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.SchedulerProperties;
@@ -39,7 +39,8 @@ public class LinkUpdateSchedulerUseCase {
         int pageSize = schedulerProperties.getLinkPageSize();
         long offset = 0;
         while (true) {
-            List<TrackedLinkSnapshot> page = linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
+            List<TrackedLinkSnapshot> page =
+                    linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
             if (page.isEmpty()) {
                 return;
             }

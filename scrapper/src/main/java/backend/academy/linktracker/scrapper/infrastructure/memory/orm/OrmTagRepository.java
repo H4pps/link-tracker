@@ -67,13 +67,11 @@ public class OrmTagRepository implements TagRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Tag> findAll(RepositoryPageRequest pageRequest) {
-        TypedQuery<TagEntity> query = entityManager.createQuery(
-                """
+        TypedQuery<TagEntity> query = entityManager.createQuery("""
                 SELECT tag
                 FROM TagEntity tag
                 ORDER BY tag.id
-                """,
-                TagEntity.class);
+                """, TagEntity.class);
         applyPaging(query, pageRequest);
         return query.getResultList().stream().map(this::toTag).toList();
     }
@@ -89,14 +87,12 @@ public class OrmTagRepository implements TagRepository {
             return new TagRenameResult(TagRenameStatus.MISSING);
         }
         Long duplicates = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT COUNT(tag)
                         FROM TagEntity tag
                         WHERE tag.name = :name
                           AND tag.id <> :id
-                        """,
-                        Long.class)
+                        """, Long.class)
                 .setParameter("name", name)
                 .setParameter("id", id)
                 .getSingleResult();
@@ -118,14 +114,12 @@ public class OrmTagRepository implements TagRepository {
             return new TagDeleteResult(TagDeleteStatus.MISSING);
         }
         Long attachedCount = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT COUNT(subscription)
                         FROM SubscriptionEntity subscription
                         JOIN subscription.tags tag
                         WHERE tag.id = :tagId
-                        """,
-                        Long.class)
+                        """, Long.class)
                 .setParameter("tagId", id)
                 .getSingleResult();
         if (attachedCount != null && attachedCount > 0) {

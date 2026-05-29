@@ -117,7 +117,8 @@ public class InMemoryTagRepository implements TagRepository {
     }
 
     private boolean isAttached(String tagName) {
-        for (Map<String, TrackedSubscription> subscriptionsByUrl : storage.subscriptionsByChatSnapshot().values()) {
+        for (Map<String, TrackedSubscription> subscriptionsByUrl :
+                storage.subscriptionsByChatSnapshot().values()) {
             for (TrackedSubscription subscription : subscriptionsByUrl.values()) {
                 if (subscription.tags().contains(tagName)) {
                     return true;

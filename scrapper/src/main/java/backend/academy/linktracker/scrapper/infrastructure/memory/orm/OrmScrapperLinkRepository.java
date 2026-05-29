@@ -1,7 +1,7 @@
 package backend.academy.linktracker.scrapper.infrastructure.memory.orm;
 
-import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import backend.academy.linktracker.scrapper.infrastructure.memory.orm.entity.ChatEntity;
@@ -36,25 +36,23 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
     @Override
     @Transactional(readOnly = true)
     public List<TrackedSubscription> findAllByChatId(long chatId, RepositoryPageRequest pageRequest) {
-        TypedQuery<SubscriptionEntity> query = entityManager
-                .createQuery(
-                        """
+        TypedQuery<SubscriptionEntity> query =
+                entityManager.createQuery("""
                         SELECT subscription
                         FROM SubscriptionEntity subscription
                         JOIN FETCH subscription.link link
                         JOIN subscription.chat chat
                 WHERE chat.chatId = :chatId
                 ORDER BY link.id
-                """,
-                        SubscriptionEntity.class)
-                .setParameter("chatId", chatId);
+                """, SubscriptionEntity.class).setParameter("chatId", chatId);
         applyPaging(query, pageRequest);
         List<SubscriptionEntity> subscriptions = query.getResultList();
         if (subscriptions.isEmpty()) {
             return List.of();
         }
 
-        List<Long> subscriptionIds = subscriptions.stream().map(SubscriptionEntity::getId).toList();
+        List<Long> subscriptionIds =
+                subscriptions.stream().map(SubscriptionEntity::getId).toList();
         Map<Long, List<String>> tagsBySubscriptionId = findTagsBySubscriptionIds(subscriptionIds);
         Map<Long, List<String>> filtersBySubscriptionId = findFiltersBySubscriptionIds(subscriptionIds);
         return subscriptions.stream()
@@ -98,7 +96,8 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
     @Override
     @Transactional
     public Optional<TrackedSubscription> remove(long chatId, String url) {
-        SubscriptionEntity subscription = findSubscriptionByChatAndUrl(chatId, url).orElse(null);
+        SubscriptionEntity subscription =
+                findSubscriptionByChatAndUrl(chatId, url).orElse(null);
         if (subscription == null) {
             return Optional.empty();
         }
@@ -111,8 +110,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
     @Override
     @Transactional(readOnly = true)
     public List<TrackedLinkSnapshot> findAllTrackedLinks(RepositoryPageRequest pageRequest) {
-        TypedQuery<OrmLinkRow> query = entityManager.createQuery(
-                """
+        TypedQuery<OrmLinkRow> query = entityManager.createQuery("""
                 SELECT DISTINCT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkRow(
                     link.id,
                     link.url
@@ -120,8 +118,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
                 FROM SubscriptionEntity subscription
                 JOIN subscription.link link
                 ORDER BY link.id
-                """,
-                OrmLinkRow.class);
+                """, OrmLinkRow.class);
         applyPaging(query, pageRequest);
         List<OrmLinkRow> linkRows = query.getResultList();
         if (linkRows.isEmpty()) {
@@ -151,9 +148,11 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
     }
 
     private TrackedSubscription toTrackedSubscription(SubscriptionEntity subscription) {
-        List<String> tags = subscription.getTags().stream().map(TagEntity::getName).sorted().toList();
-        List<String> filters =
-                subscription.getFilters().stream().map(SubscriptionFilterEntity::getValue).toList();
+        List<String> tags =
+                subscription.getTags().stream().map(TagEntity::getName).sorted().toList();
+        List<String> filters = subscription.getFilters().stream()
+                .map(SubscriptionFilterEntity::getValue)
+                .toList();
         return new TrackedSubscription(
                 subscription.getLink().getId(), subscription.getLink().getUrl(), tags, filters);
     }
@@ -199,14 +198,12 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
 
     private boolean hasSubscription(long internalChatId, long linkId) {
         Long count = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT COUNT(subscription)
                         FROM SubscriptionEntity subscription
                         WHERE subscription.chat.id = :chatId
                           AND subscription.link.id = :linkId
-                        """,
-                        Long.class)
+                        """, Long.class)
                 .setParameter("chatId", internalChatId)
                 .setParameter("linkId", linkId)
                 .getSingleResult();
@@ -215,16 +212,14 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
 
     private Optional<SubscriptionEntity> findSubscriptionByChatAndUrl(long chatId, String url) {
         return entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT subscription
                         FROM SubscriptionEntity subscription
                         JOIN subscription.chat chat
                         JOIN subscription.link link
                         WHERE chat.chatId = :chatId
                           AND link.url = :url
-                        """,
-                        SubscriptionEntity.class)
+                        """, SubscriptionEntity.class)
                 .setParameter("chatId", chatId)
                 .setParameter("url", url)
                 .getResultList()
@@ -241,8 +236,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
             return Map.of();
         }
         List<OrmSubscriptionTagRow> rows = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionTagRow(
                             subscription.id,
                             tag.name
@@ -251,8 +245,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
                         JOIN subscription.tags tag
                         WHERE subscription.id IN :subscriptionIds
                         ORDER BY subscription.id, tag.name
-                        """,
-                        OrmSubscriptionTagRow.class)
+                        """, OrmSubscriptionTagRow.class)
                 .setParameter("subscriptionIds", subscriptionIds)
                 .getResultList();
         Map<Long, List<String>> tagsBySubscriptionId = new HashMap<>();
@@ -269,8 +262,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
             return Map.of();
         }
         List<OrmSubscriptionFilterRow> rows = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmSubscriptionFilterRow(
                             filter.subscription.id,
                             filter.value
@@ -278,8 +270,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
                         FROM SubscriptionFilterEntity filter
                         WHERE filter.subscription.id IN :subscriptionIds
                         ORDER BY filter.subscription.id, filter.id
-                        """,
-                        OrmSubscriptionFilterRow.class)
+                        """, OrmSubscriptionFilterRow.class)
                 .setParameter("subscriptionIds", subscriptionIds)
                 .getResultList();
         Map<Long, List<String>> filtersBySubscriptionId = new HashMap<>();
@@ -293,8 +284,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
 
     private Map<Long, List<Long>> findChatIdsByLinkIds(List<Long> linkIds) {
         List<OrmLinkChatRow> rows = entityManager
-                .createQuery(
-                        """
+                .createQuery("""
                         SELECT new backend.academy.linktracker.scrapper.infrastructure.memory.orm.projection.OrmLinkChatRow(
                             link.id,
                             chat.chatId
@@ -304,8 +294,7 @@ public class OrmScrapperLinkRepository implements ScrapperLinkRepository {
                         JOIN subscription.chat chat
                         WHERE link.id IN :linkIds
                         ORDER BY link.id, chat.chatId
-                        """,
-                        OrmLinkChatRow.class)
+                        """, OrmLinkChatRow.class)
                 .setParameter("linkIds", linkIds)
                 .getResultList();
         Map<Long, List<Long>> chatIdsByLinkId = new HashMap<>();
