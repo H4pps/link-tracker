@@ -1,76 +1,93 @@
 # LinkTracker
 
-LinkTracker — учебный проект Telegram-бота и связанных сервисов.
+LinkTracker — учебный проект из двух сервисов: `scrapper` и `bot`.
 
-## Быстрый запуск bot-сервиса
-
-### 1. Требования
+## Требования
 
 - JDK 25
 - Maven Wrapper (`./mvnw`, уже в репозитории)
+- Docker
+- Docker Compose (`docker compose`)
 
-### 2. Настройка токена Telegram
+## Настройка `.env` в корне проекта
 
-Создайте файл:
+1. Создайте корневой `.env` из шаблона:
 
-- `bot/.env`
+```bash
+cp .env.example .env
+```
 
-Содержимое:
+2. Заполните обязательные поля:
+
+- `TELEGRAM_TOKEN`
+- `GITHUB_TOKEN`
+- `STACKOVERFLOW_KEY`
+- `STACKOVERFLOW_ACCESS_KEY`
+
+3. Проверьте/при необходимости скорректируйте переменные базы данных:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `SPRING_DATASOURCE_URL`
+- `SPRING_DATASOURCE_USERNAME`
+- `SPRING_DATASOURCE_PASSWORD`
+
+4. Выберите тип доступа к БД:
 
 ```dotenv
-TELEGRAM_TOKEN=<ваш_telegram_bot_token>
+APP_DATABASE_ACCESS_TYPE=SQL
 ```
 
-Пример шаблона:
+Допустимые значения: `SQL` или `ORM`.
 
-- `bot/.env.example`
+Корневой `.env.example` рассчитан на запуск через Docker Compose, поэтому межсервисные адреса используют имена контейнеров: `postgres`, `scrapper`, `bot`.
 
-Токен читается из:
-
-- `bot/src/main/resources/application.yaml`
-- `spring.config.import=optional:file:.env[.properties],optional:file:bot/.env[.properties]`
-
-### 3. Запуск
-
-Из корня проекта:
+## Запуск через Docker Compose
 
 ```bash
-./mvnw -pl bot spring-boot:run
+docker compose up --build
 ```
 
-Или из IntelliJ:
+## Запуск вручную / из IDE
 
-1. Откройте модуль `bot`
-2. Запустите `backend.academy.linktracker.bot.BotApplication`
-
-По умолчанию HTTP-порт приложения: `8080`.
-
-### 4. Проверка бота в Telegram
-
-Отправьте боту команды:
-
-- `/start`
-- `/help`
-- любую неизвестную команду (например `/unknown`)
-
-Ожидаемое поведение:
-
-- `/start` -> приветствие
-- `/help` -> список доступных команд
-- неизвестная команда -> сообщение об ошибке
-
-## Тесты
-
-Тесты bot-модуля:
+1. Поднимите PostgreSQL:
 
 ```bash
-./mvnw -pl bot -am test
+docker compose up -d postgres
 ```
 
-Все тесты проекта:
+2. Для ручного запуска используйте модульные env-файлы с localhost-адресами:
 
 ```bash
-./mvnw test
+cp scrapper/.env.example scrapper/.env
+cp bot/.env.example bot/.env
+```
+
+3. Запустите `scrapper`:
+
+- IDE: `backend.academy.linktracker.scrapper.ScrapperApplication`
+- CLI: `./mvnw -pl scrapper spring-boot:run`
+
+4. Запустите `bot`:
+
+- IDE: `backend.academy.linktracker.bot.BotApplication`
+- CLI: `./mvnw -pl bot spring-boot:run`
+
+Порядок запуска обязателен: сначала PostgreSQL, затем `ScrapperApplication`, затем `BotApplication`.
+
+## Финальные команды проверки (test/lint)
+
+Lint/check:
+
+```bash
+./mvnw clean compile -am spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
+```
+
+Тесты `bot` и `scrapper`:
+
+```bash
+./mvnw -pl bot,scrapper -am test
 ```
 
 ## Полезно
