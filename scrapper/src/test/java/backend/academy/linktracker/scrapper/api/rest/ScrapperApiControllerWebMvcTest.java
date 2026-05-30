@@ -10,15 +10,15 @@ import backend.academy.linktracker.scrapper.api.rest.controllers.LinkController;
 import backend.academy.linktracker.scrapper.api.rest.controllers.TgChatController;
 import backend.academy.linktracker.scrapper.api.rest.errors.ScrapperApiExceptionHandler;
 import backend.academy.linktracker.scrapper.api.rest.interceptors.ScrapperApiLoggingInterceptor;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCaseImpl;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperLinkRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,16 +38,14 @@ class ScrapperApiControllerWebMvcTest {
     @Mock
     private ScrapperLogger scrapperLogger;
 
-    private ScrapperChatUseCase scrapperChatUseCase;
-    private ScrapperLinkUseCase scrapperLinkUseCase;
-
     @BeforeEach
     void setUp() {
         InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
         ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
         ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
-        scrapperChatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
-        scrapperLinkUseCase = new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
+        ScrapperChatUseCase scrapperChatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
+        ScrapperLinkUseCase scrapperLinkUseCase =
+                new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
@@ -119,6 +117,88 @@ class ScrapperApiControllerWebMvcTest {
     }
 
     @Test
+    void listLinksAppliesPaginationQueryParams() throws Exception {
+        mockMvc.perform(post("/tg-chat/1")).andExpect(status().isOk());
+
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "link": "https://github.com/octocat/first",
+                                  "tags": ["work"],
+                                  "filters": ["f1"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "link": "https://github.com/octocat/second",
+                                  "tags": ["team"],
+                                  "filters": ["f2"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "link": "https://github.com/octocat/third",
+                                  "tags": ["study"],
+                                  "filters": ["f3"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .param("limit", "2")
+                        .param("offset", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.links[0].url").value("https://github.com/octocat/second"))
+                .andExpect(jsonPath("$.links[1].url").value("https://github.com/octocat/third"));
+    }
+
+    @Test
+    void listLinksWithoutPaginationParamsKeepsCompatibility() throws Exception {
+        mockMvc.perform(post("/tg-chat/1")).andExpect(status().isOk());
+
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "link": "https://github.com/octocat/a",
+                                  "tags": ["one"],
+                                  "filters": ["f1"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/links")
+                        .header("Tg-Chat-Id", 1)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "link": "https://github.com/octocat/b",
+                                  "tags": ["two"],
+                                  "filters": ["f2"]
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/links").header("Tg-Chat-Id", 1))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.links[0].url").value("https://github.com/octocat/a"))
+                .andExpect(jsonPath("$.links[1].url").value("https://github.com/octocat/b"));
+    }
+
+    @Test
     void linkEndpointsReturnBadRequestForInvalidHeaderOrBody() throws Exception {
         mockMvc.perform(get("/links").header("Tg-Chat-Id", 0))
                 .andExpect(status().isBadRequest())
@@ -135,6 +215,17 @@ class ScrapperApiControllerWebMvcTest {
                         .header("Tg-Chat-Id", 1)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"link\":\"bad-link\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void listLinksRejectsNegativePaginationParams() throws Exception {
+        mockMvc.perform(get("/links").header("Tg-Chat-Id", 1).param("limit", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+
+        mockMvc.perform(get("/links").header("Tg-Chat-Id", 1).param("offset", "-1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }

@@ -1,7 +1,7 @@
 package backend.academy.linktracker.scrapper.application.link;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
@@ -30,9 +30,21 @@ public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
      */
     @Override
     public List<LinkView> listLinks(long chatId) {
+        return listLinks(chatId, RepositoryPageRequest.all());
+    }
+
+    /**
+     * Returns links tracked for the provided chat with optional page bounds.
+     *
+     * @param chatId telegram chat identifier
+     * @param pageRequest page bounds, unbounded when limit is zero
+     * @return links sorted by ascending internal id
+     */
+    @Override
+    public List<LinkView> listLinks(long chatId, RepositoryPageRequest pageRequest) {
         scrapperLogger.logUseCaseAccepted("list-links", chatId, null);
         requireChatExists(chatId);
-        return linkRepository.findAllByChatId(chatId).stream()
+        return linkRepository.findAllByChatId(chatId, pageRequest).stream()
                 .sorted(Comparator.comparingLong(TrackedSubscription::id))
                 .map(this::toLinkView)
                 .toList();

@@ -1,7 +1,8 @@
-package backend.academy.linktracker.scrapper.infrastructure.memory;
+package backend.academy.linktracker.scrapper.infrastructure.memory.inmemory;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.database.access-type", havingValue = "MEMORY")
 public class InMemoryScrapperChatRepository implements ScrapperChatRepository {
 
     private final InMemoryScrapperStorage storage;

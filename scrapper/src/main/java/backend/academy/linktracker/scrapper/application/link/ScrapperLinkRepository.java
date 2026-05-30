@@ -1,5 +1,6 @@
-package backend.academy.linktracker.scrapper.application.repository;
+package backend.academy.linktracker.scrapper.application.link;
 
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.List;
@@ -16,7 +17,18 @@ public interface ScrapperLinkRepository {
      * @param chatId telegram chat identifier
      * @return list of tracked subscriptions or empty list when chat has no subscriptions
      */
-    List<TrackedSubscription> findAllByChatId(long chatId);
+    default List<TrackedSubscription> findAllByChatId(long chatId) {
+        return findAllByChatId(chatId, RepositoryPageRequest.all());
+    }
+
+    /**
+     * Reads links for a chat with optional page bounds.
+     *
+     * @param chatId telegram chat identifier
+     * @param pageRequest page bounds, unbounded when limit is zero
+     * @return list of tracked subscriptions or empty list when chat has no subscriptions
+     */
+    List<TrackedSubscription> findAllByChatId(long chatId, RepositoryPageRequest pageRequest);
 
     /**
      * Adds link for a chat if the same URL is not present yet.
@@ -43,5 +55,15 @@ public interface ScrapperLinkRepository {
      *
      * @return deterministic global tracked-link snapshots
      */
-    List<TrackedLinkSnapshot> findAllTrackedLinks();
+    default List<TrackedLinkSnapshot> findAllTrackedLinks() {
+        return findAllTrackedLinks(RepositoryPageRequest.all());
+    }
+
+    /**
+     * Reads tracked URLs with subscribed chat identifiers with optional page bounds.
+     *
+     * @param pageRequest page bounds, unbounded when limit is zero
+     * @return deterministic global tracked-link snapshots
+     */
+    List<TrackedLinkSnapshot> findAllTrackedLinks(RepositoryPageRequest pageRequest);
 }

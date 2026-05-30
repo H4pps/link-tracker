@@ -4,9 +4,11 @@ import backend.academy.linktracker.scrapper.application.external.ExternalSourceE
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceReader;
 import backend.academy.linktracker.scrapper.application.external.LinkSource;
 import backend.academy.linktracker.scrapper.application.external.LinkSourceResolver;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
+import backend.academy.linktracker.scrapper.properties.SchedulerProperties;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -28,13 +30,28 @@ public class LinkUpdateSchedulerUseCase {
     private final LinkUpdateCheckpointRepository checkpointRepository;
     private final BotNotificationSender botNotificationSender;
     private final ScrapperLogger scrapperLogger;
+    private final SchedulerProperties schedulerProperties;
 
     /**
      * Executes a full update-check batch.
      */
     public void checkUpdates() {
-        for (TrackedLinkSnapshot trackedLink : linkRepository.findAllTrackedLinks()) {
-            processTrackedLink(trackedLink);
+        int pageSize = schedulerProperties.getLinkPageSize();
+        long offset = 0;
+        while (true) {
+            List<TrackedLinkSnapshot> page =
+                    linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
+            if (page.isEmpty()) {
+                return;
+            }
+
+            for (TrackedLinkSnapshot trackedLink : page) {
+                processTrackedLink(trackedLink);
+            }
+            if (page.size() < pageSize) {
+                return;
+            }
+            offset += page.size();
         }
     }
 

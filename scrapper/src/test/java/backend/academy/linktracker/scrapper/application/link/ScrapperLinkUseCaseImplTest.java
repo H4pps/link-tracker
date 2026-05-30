@@ -4,14 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperLinkRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;

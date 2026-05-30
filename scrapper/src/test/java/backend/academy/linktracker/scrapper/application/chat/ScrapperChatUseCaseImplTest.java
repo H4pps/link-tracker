@@ -4,11 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperChatRepository;
-import backend.academy.linktracker.scrapper.infrastructure.memory.InMemoryScrapperStorage;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

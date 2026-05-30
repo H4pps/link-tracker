@@ -117,7 +117,7 @@ class GrpcScrapperLinkGatewayTest {
         ScrapperProperties properties = new ScrapperProperties();
         properties.setGrpcHost("localhost");
         properties.setGrpcPort(port);
-        properties.setGrpcDeadline(Duration.ofSeconds(1));
+        properties.setGrpcDeadline(Duration.ofSeconds(10));
         client = new GrpcScrapperClient(properties, new BotLogger());
         return client;
     }

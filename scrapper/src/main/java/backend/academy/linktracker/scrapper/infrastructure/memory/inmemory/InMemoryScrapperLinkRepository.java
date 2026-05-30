@@ -1,6 +1,7 @@
-package backend.academy.linktracker.scrapper.infrastructure.memory;
+package backend.academy.linktracker.scrapper.infrastructure.memory.inmemory;
 
-import backend.academy.linktracker.scrapper.application.repository.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
+import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "app.database.access-type", havingValue = "MEMORY")
 public class InMemoryScrapperLinkRepository implements ScrapperLinkRepository {
 
     private final InMemoryScrapperStorage storage;
@@ -27,12 +30,15 @@ public class InMemoryScrapperLinkRepository implements ScrapperLinkRepository {
      * {@inheritDoc}
      */
     @Override
-    public List<TrackedSubscription> findAllByChatId(long chatId) {
+    public List<TrackedSubscription> findAllByChatId(long chatId, RepositoryPageRequest pageRequest) {
         ConcurrentMap<String, TrackedSubscription> subscriptions = storage.subscriptionsForChat(chatId);
         if (subscriptions == null) {
             return List.of();
         }
-        return subscriptions.values().stream().toList();
+        List<TrackedSubscription> sorted = subscriptions.values().stream()
+                .sorted(Comparator.comparingLong(TrackedSubscription::id))
+                .toList();
+        return applyPage(sorted, pageRequest);
     }
 
     /**
@@ -70,7 +76,7 @@ public class InMemoryScrapperLinkRepository implements ScrapperLinkRepository {
      * {@inheritDoc}
      */
     @Override
-    public List<TrackedLinkSnapshot> findAllTrackedLinks() {
+    public List<TrackedLinkSnapshot> findAllTrackedLinks(RepositoryPageRequest pageRequest) {
         Map<String, AggregatedByUrl> aggregatedByUrl = new HashMap<>();
         Map<Long, Map<String, TrackedSubscription>> byChat = storage.subscriptionsByChatSnapshot();
         for (Map.Entry<Long, Map<String, TrackedSubscription>> chatEntry : byChat.entrySet()) {
@@ -91,7 +97,15 @@ public class InMemoryScrapperLinkRepository implements ScrapperLinkRepository {
                     entry.getValue().chatIds.stream().toList()));
         }
         snapshots.sort(Comparator.comparingLong(TrackedLinkSnapshot::id));
-        return snapshots;
+        return applyPage(snapshots, pageRequest);
+    }
+
+    private <T> List<T> applyPage(List<T> values, RepositoryPageRequest pageRequest) {
+        int fromIndex = (int) Math.min(pageRequest.offset(), values.size());
+        int toIndex = pageRequest.bounded()
+                ? (int) Math.min((long) fromIndex + pageRequest.limit(), values.size())
+                : values.size();
+        return values.subList(fromIndex, toIndex);
     }
 
     private static final class AggregatedByUrl {

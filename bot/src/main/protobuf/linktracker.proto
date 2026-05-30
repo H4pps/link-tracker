@@ -16,6 +16,8 @@ message ChatRequest {
 
 message ListLinksRequest {
   int64 chat_id = 1;
+  int32 limit = 2;
+  int64 offset = 3;
 }
 
 message AddLinkRequest {
@@ -37,8 +39,36 @@ message Link {
   repeated string filters = 4;
 }
 
+message Tag {
+  int64 id = 1;
+  string name = 2;
+}
+
+message TagIdRequest {
+  int64 tag_id = 1;
+}
+
+message TagNameRequest {
+  string name = 1;
+}
+
+message RenameTagRequest {
+  int64 tag_id = 1;
+  string name = 2;
+}
+
+message ListTagsRequest {
+  int32 limit = 1;
+  int64 offset = 2;
+}
+
 message ListLinksResponse {
   repeated Link links = 1;
+  int32 size = 2;
+}
+
+message ListTagsResponse {
+  repeated Tag tags = 1;
   int32 size = 2;
 }
 
@@ -55,6 +85,12 @@ service ScrapperService {
   rpc ListLinks(ListLinksRequest) returns (ListLinksResponse);
   rpc AddLink(AddLinkRequest) returns (Link);
   rpc RemoveLink(RemoveLinkRequest) returns (Link);
+  rpc CreateTag(TagNameRequest) returns (Tag);
+  rpc GetTag(TagIdRequest) returns (Tag);
+  rpc GetTagByName(TagNameRequest) returns (Tag);
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse);
+  rpc RenameTag(RenameTagRequest) returns (Tag);
+  rpc DeleteTag(TagIdRequest) returns (Ack);
 }
 
 service BotService {

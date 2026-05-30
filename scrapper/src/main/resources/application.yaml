@@ -6,6 +6,13 @@ spring:
     name: scrapper
   config:
     import: optional:file:.env[.properties],optional:file:scrapper/.env[.properties]
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/link_tracker}
+    username: ${SPRING_DATASOURCE_USERNAME:link_tracker}
+    password: ${SPRING_DATASOURCE_PASSWORD:link_tracker}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+  liquibase:
+    change-log: classpath:/migrations/db.changelog-master.yaml
 
 logging:
   pattern:
@@ -26,6 +33,9 @@ app:
   scheduler:
     enabled: ${APP_SCHEDULER_ENABLED:true}
     interval: ${APP_SCHEDULER_INTERVAL:30s}
+    link-page-size: ${APP_SCHEDULER_LINK_PAGE_SIZE:100}
+  database:
+    access-type: ${APP_DATABASE_ACCESS_TYPE:SQL}
   stackoverflow:
     base-url: ${APP_STACKOVERFLOW_BASE_URL:https://api.stackexchange.com}
     key: ${STACKOVERFLOW_KEY} # Use env variable. DO NOT KEEP TOKEN HERE
