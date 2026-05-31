@@ -1,9 +1,10 @@
 package backend.academy.linktracker.scrapper.application.external;
 
-import java.time.Instant;
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
 
 /**
- * Reads last-update timestamp from external source.
+ * Reads latest update metadata from external source.
  */
 public interface ExternalSourceReader {
 
@@ -16,10 +17,10 @@ public interface ExternalSourceReader {
     boolean supports(LinkSource source);
 
     /**
-     * Fetches latest update timestamp for source item.
+     * Fetches latest update metadata for source item.
      *
      * @param source parsed source descriptor
-     * @return external update timestamp
+     * @return external update metadata
      */
-    Instant fetchLastUpdated(LinkSource source);
+    ExternalUpdate fetchLatestUpdate(LinkSource source);
 }

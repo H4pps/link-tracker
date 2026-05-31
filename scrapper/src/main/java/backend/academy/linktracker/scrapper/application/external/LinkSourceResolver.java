@@ -1,5 +1,6 @@
 package backend.academy.linktracker.scrapper.application.external;
 
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
 import java.util.Optional;
 
 /**
