@@ -2,11 +2,13 @@ package backend.academy.linktracker.scrapper.application.update;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Outbox row payload and delivery metadata for Kafka notifications.
  *
  * @param outboxId outbox row identifier
+ * @param messageId stable idempotency key propagated to the consumer
  * @param id link update identifier
  * @param url tracked URL
  * @param description update description
@@ -21,6 +23,7 @@ import java.util.List;
  */
 public record LinkUpdateOutboxEvent(
         Long outboxId,
+        UUID messageId,
         long id,
         String url,
         String description,
@@ -60,6 +63,18 @@ public record LinkUpdateOutboxEvent(
      */
     public static LinkUpdateOutboxEvent pending(long id, String url, String description, List<Long> tgChatIds) {
         return new LinkUpdateOutboxEvent(
-                null, id, url, description, tgChatIds, Status.PENDING, 0, null, Instant.now(), null, null, null);
+                null,
+                UUID.randomUUID(),
+                id,
+                url,
+                description,
+                tgChatIds,
+                Status.PENDING,
+                0,
+                null,
+                Instant.now(),
+                null,
+                null,
+                null);
     }
 }

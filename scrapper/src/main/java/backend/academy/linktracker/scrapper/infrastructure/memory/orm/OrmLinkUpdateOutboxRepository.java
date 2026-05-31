@@ -23,6 +23,7 @@ public class OrmLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
     @Transactional
     public void save(LinkUpdateOutboxEvent event) {
         LinkUpdateOutboxEntity entity = new LinkUpdateOutboxEntity();
+        entity.setMessageId(event.messageId());
         entity.setPayloadId(event.id());
         entity.setPayloadUrl(event.url());
         entity.setPayloadDescription(event.description());
@@ -83,6 +84,7 @@ public class OrmLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
     private LinkUpdateOutboxEvent toDomain(LinkUpdateOutboxEntity entity) {
         return new LinkUpdateOutboxEvent(
                 entity.getId(),
+                entity.getMessageId(),
                 entity.getPayloadId(),
                 entity.getPayloadUrl(),
                 entity.getPayloadDescription(),

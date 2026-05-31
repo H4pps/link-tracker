@@ -30,6 +30,7 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
         jdbcTemplate.update(
                 """
                 INSERT INTO link_update_outbox (
+                    message_id,
                     payload_id,
                     payload_url,
                     payload_description,
@@ -39,8 +40,9 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                     next_attempt_at,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, 'PENDING', 0, NOW(), NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, 'PENDING', 0, NOW(), NOW(), NOW())
                 """,
+                event.messageId(),
                 event.id(),
                 event.url(),
                 event.description(),
@@ -54,6 +56,7 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                 """
                 SELECT
                     id,
+                    message_id,
                     payload_id,
                     payload_url,
                     payload_description,
@@ -74,6 +77,7 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                 """,
                 (resultSet, rowNum) -> new LinkUpdateOutboxEvent(
                         resultSet.getLong("id"),
+                        resultSet.getObject("message_id", java.util.UUID.class),
                         resultSet.getLong("payload_id"),
                         resultSet.getString("payload_url"),
                         resultSet.getString("payload_description"),

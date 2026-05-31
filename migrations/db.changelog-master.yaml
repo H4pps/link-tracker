@@ -13,3 +13,10 @@ databaseChangeLog:
         - sqlFile:
             path: changesets/002-create-link-update-outbox.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 003-add-outbox-message-id
+      author: scrapper
+      changes:
+        - sqlFile:
+            path: changesets/003-add-outbox-message-id.sql
+            relativeToChangelogFile: true
