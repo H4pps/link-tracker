@@ -6,6 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
+import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import backend.academy.linktracker.grpc.BotServiceGrpc;
 import backend.academy.linktracker.grpc.LinkUpdateRequest;
 import io.grpc.ManagedChannel;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -87,5 +89,29 @@ class BotGrpcServiceEndpointTest {
                 .extracting(
                         error -> ((StatusRuntimeException) error).getStatus().getCode())
                 .isEqualTo(Status.Code.INTERNAL);
+    }
+
+    @Test
+    void sendUpdatePreservesMultilineRichDescriptionInUseCaseCommand() {
+        String description = String.join(
+                "\n",
+                "Update type: GitHub Pull Request",
+                "Title: feat: ship scheduler metadata payload",
+                "Author: octocat",
+                "Created at: 2024-05-22T11:12:13Z",
+                "Preview: keeps line breaks from scrapper");
+
+        var response = stub.sendUpdate(LinkUpdateRequest.newBuilder()
+                .setId(11)
+                .setUrl("https://github.com/acme/platform")
+                .setDescription(description)
+                .addTgChatIds(100)
+                .addTgChatIds(200)
+                .build());
+
+        ArgumentCaptor<LinkUpdateCommand> commandCaptor = ArgumentCaptor.forClass(LinkUpdateCommand.class);
+        verify(botUpdateUseCase).processLinkUpdate(commandCaptor.capture());
+        assertThat(response.getAccepted()).isTrue();
+        assertThat(commandCaptor.getValue().description()).isEqualTo(description);
     }
 }
