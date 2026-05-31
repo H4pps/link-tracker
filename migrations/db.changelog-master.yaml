@@ -6,3 +6,10 @@ databaseChangeLog:
         - sqlFile:
             path: changesets/001-create-scrapper-storage.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 002-create-link-update-outbox
+      author: scrapper
+      changes:
+        - sqlFile:
+            path: changesets/002-create-link-update-outbox.sql
+            relativeToChangelogFile: true
