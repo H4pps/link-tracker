@@ -23,6 +23,7 @@ public class TelegramBotUpdateUseCase implements BotUpdateUseCase {
     @Override
     public void processLinkUpdate(LinkUpdateCommand command) {
         String message = formatMessage(command);
+        RuntimeException firstFailure = null;
         for (Long chatId : command.tgChatIds()) {
             if (chatId == null) {
                 continue;
@@ -31,9 +32,18 @@ public class TelegramBotUpdateUseCase implements BotUpdateUseCase {
                 botLogger.logUpdateNotificationSendAttempt(chatId, command.url());
                 boolean sent = outboundSender.sendMessage(chatId, message);
                 botLogger.logUpdateNotificationSendResult(chatId, command.url(), sent);
+                if (!sent && firstFailure == null) {
+                    firstFailure = new IllegalStateException("Failed to deliver update to chat " + chatId);
+                }
             } catch (RuntimeException exception) {
                 botLogger.logApiRequestFailed("/updates", 500, "TELEGRAM_SEND_FAILED", exception);
+                if (firstFailure == null) {
+                    firstFailure = exception;
+                }
             }
+        }
+        if (firstFailure != null) {
+            throw firstFailure;
         }
     }
 
