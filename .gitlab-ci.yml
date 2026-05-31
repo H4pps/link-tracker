@@ -22,12 +22,14 @@ cache:
 
 build:
   stage: build
+  timeout: 30m
   script:
     - apk add --no-cache gcompat
     - ./mvnw package -DskipTests=true -Djacoco.skip=true
 
 lint:
   stage: lint
+  timeout: 20m
   needs:
     - build
   script:
@@ -36,6 +38,7 @@ lint:
 
 test:
   stage: test
+  timeout: 40m
   needs:
     - build
   services:
