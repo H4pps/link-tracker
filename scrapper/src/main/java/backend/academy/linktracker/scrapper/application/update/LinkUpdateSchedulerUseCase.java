@@ -2,8 +2,9 @@ package backend.academy.linktracker.scrapper.application.update;
 
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceException;
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceReader;
-import backend.academy.linktracker.scrapper.application.external.LinkSource;
 import backend.academy.linktracker.scrapper.application.external.LinkSourceResolver;
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
@@ -22,8 +23,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class LinkUpdateSchedulerUseCase {
 
-    private static final String DEFAULT_DESCRIPTION = "Обнаружены изменения";
-
     private final ScrapperLinkRepository linkRepository;
     private final LinkSourceResolver linkSourceResolver;
     private final List<ExternalSourceReader> readers;
@@ -31,6 +30,8 @@ public class LinkUpdateSchedulerUseCase {
     private final BotNotificationSender botNotificationSender;
     private final ScrapperLogger scrapperLogger;
     private final SchedulerProperties schedulerProperties;
+    private final ExternalUpdateDescriptionFormatter updateDescriptionFormatter =
+            new ExternalUpdateDescriptionFormatter();
 
     /**
      * Executes a full update-check batch.
@@ -69,7 +70,8 @@ public class LinkUpdateSchedulerUseCase {
                 return;
             }
 
-            Instant currentTimestamp = reader.fetchLastUpdated(source);
+            ExternalUpdate latestUpdate = reader.fetchLatestUpdate(source);
+            Instant currentTimestamp = latestUpdate.createdAt();
             Instant previousTimestamp =
                     checkpointRepository.findByUrl(trackedLink.url()).orElse(null);
             if (previousTimestamp == null) {
@@ -85,7 +87,10 @@ public class LinkUpdateSchedulerUseCase {
             }
 
             LinkUpdateNotification notification = new LinkUpdateNotification(
-                    trackedLink.id(), trackedLink.url(), DEFAULT_DESCRIPTION, trackedLink.chatIds());
+                    trackedLink.id(),
+                    trackedLink.url(),
+                    updateDescriptionFormatter.format(latestUpdate),
+                    trackedLink.chatIds());
             scrapperLogger.logSchedulerNotifyAttempt(
                     trackedLink.url(), trackedLink.chatIds().size());
             boolean sent = botNotificationSender.send(notification);

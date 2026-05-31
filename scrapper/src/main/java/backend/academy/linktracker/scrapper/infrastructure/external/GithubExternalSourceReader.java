@@ -2,9 +2,11 @@ package backend.academy.linktracker.scrapper.infrastructure.external;
 
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceException;
 import backend.academy.linktracker.scrapper.application.external.ExternalSourceReader;
-import backend.academy.linktracker.scrapper.application.external.GithubLinkSource;
-import backend.academy.linktracker.scrapper.application.external.LinkSource;
-import backend.academy.linktracker.scrapper.infrastructure.external.dto.GithubRepositoryResponse;
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
+import backend.academy.linktracker.scrapper.application.external.link.github.GithubLinkSource;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdateType;
+import backend.academy.linktracker.scrapper.infrastructure.external.dto.github.GithubIssueItemResponse;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.GithubProperties;
 import java.time.Instant;
@@ -14,7 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 /**
- * Manual GitHub API reader for repository update timestamps.
+ * Manual GitHub API reader for latest repository issue/pull-request updates.
  */
 @Component
 public class GithubExternalSourceReader implements ExternalSourceReader {
@@ -55,22 +57,23 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
      * {@inheritDoc}
      */
     @Override
-    public Instant fetchLastUpdated(LinkSource source) {
+    public ExternalUpdate fetchLatestUpdate(LinkSource source) {
         GithubLinkSource githubSource = cast(source);
         try {
-            GithubRepositoryResponse response = restClient
+            GithubIssueItemResponse[] response = restClient
                     .get()
-                    .uri("/repos/{owner}/{repo}", githubSource.owner(), githubSource.repository())
+                    .uri(
+                            "/repos/{owner}/{repo}/issues?sort=created&direction=desc&per_page=1&state=all",
+                            githubSource.owner(),
+                            githubSource.repository())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                     .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
                     .retrieve()
-                    .body(GithubRepositoryResponse.class);
-            if (response == null
-                    || response.updatedAt() == null
-                    || response.updatedAt().isBlank()) {
-                throw new ExternalSourceException("GitHub response missing updated_at", null);
+                    .body(GithubIssueItemResponse[].class);
+            if (response == null || response.length == 0) {
+                throw new ExternalSourceException("GitHub response has no issue items", null);
             }
-            return Instant.parse(response.updatedAt());
+            return mapLatestUpdate(response[0]);
         } catch (RuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(
                     "github",
@@ -79,8 +82,30 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
             if (exception instanceof ExternalSourceException externalSourceException) {
                 throw externalSourceException;
             }
-            throw new ExternalSourceException("Failed to fetch GitHub repository metadata", exception);
+            throw new ExternalSourceException("Failed to fetch GitHub issue metadata", exception);
         }
+    }
+
+    private ExternalUpdate mapLatestUpdate(GithubIssueItemResponse item) {
+        if (item == null
+                || item.createdAt() == null
+                || item.createdAt().isBlank()
+                || item.title() == null
+                || item.title().isBlank()
+                || item.user() == null
+                || item.user().login() == null
+                || item.user().login().isBlank()) {
+            throw new ExternalSourceException("GitHub response missing required issue fields", null);
+        }
+
+        ExternalUpdateType type =
+                item.pullRequest() == null ? ExternalUpdateType.GITHUB_ISSUE : ExternalUpdateType.GITHUB_PULL_REQUEST;
+        return new ExternalUpdate(
+                type,
+                Instant.parse(item.createdAt()),
+                item.title(),
+                item.user().login(),
+                item.body() == null ? "" : item.body());
     }
 
     private GithubLinkSource cast(LinkSource source) {

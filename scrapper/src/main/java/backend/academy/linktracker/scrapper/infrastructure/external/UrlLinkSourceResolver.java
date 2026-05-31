@@ -1,9 +1,9 @@
 package backend.academy.linktracker.scrapper.infrastructure.external;
 
-import backend.academy.linktracker.scrapper.application.external.GithubLinkSource;
-import backend.academy.linktracker.scrapper.application.external.LinkSource;
 import backend.academy.linktracker.scrapper.application.external.LinkSourceResolver;
-import backend.academy.linktracker.scrapper.application.external.StackoverflowQuestionLinkSource;
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
+import backend.academy.linktracker.scrapper.application.external.link.github.GithubLinkSource;
+import backend.academy.linktracker.scrapper.application.external.link.stackoverflow.StackoverflowQuestionLinkSource;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Locale;
