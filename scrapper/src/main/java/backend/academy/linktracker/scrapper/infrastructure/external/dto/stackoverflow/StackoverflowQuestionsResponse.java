@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.external.dto;
+package backend.academy.linktracker.scrapper.infrastructure.external.dto.stackoverflow;
 
 import java.util.List;
 
