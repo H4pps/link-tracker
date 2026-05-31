@@ -2,11 +2,13 @@ package backend.academy.linktracker.bot.infrastructure.kafka;
 
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
+import backend.academy.linktracker.bot.application.update.ProcessedUpdateRepository;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
@@ -30,19 +32,23 @@ public class KafkaLinkUpdateConsumer {
     private static final String ERROR_CLASS_HEADER = "error-class";
     private static final String ERROR_MESSAGE_HEADER = "error-message";
     private static final String ERROR_ATTEMPT_HEADER = "error-attempt";
+    private static final String MESSAGE_ID_HEADER = "message-id";
 
     private final BotUpdateUseCase botUpdateUseCase;
     private final KafkaProperties kafkaProperties;
     private final KafkaAvroDeserializer kafkaAvroDeserializer;
     private final KafkaTemplate<String, LinkUpdateEvent> kafkaTemplate;
     private final KafkaTemplate<String, byte[]> kafkaBytesTemplate;
+    private final ProcessedUpdateRepository processedUpdateRepository;
 
     @KafkaListener(
             topics = "${app.kafka.link-updates-topic:link-updates}",
             groupId = "${app.kafka.consumer-group:link-tracker-bot}",
             containerFactory = "kafkaRawListenerContainerFactory")
     public void listen(
-            @Payload byte[] payload, @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key) {
+            @Payload byte[] payload,
+            @Header(name = KafkaHeaders.RECEIVED_KEY, required = false) String key,
+            @Header(name = MESSAGE_ID_HEADER, required = false) byte[] messageIdHeader) {
         LinkUpdateEvent event;
         try {
             event = deserialize(payload);
@@ -58,7 +64,26 @@ public class KafkaLinkUpdateConsumer {
             return;
         }
 
-        consumeWithRetry(key, event);
+        UUID messageId = parseMessageId(messageIdHeader);
+        if (messageId != null && processedUpdateRepository.isProcessed(messageId)) {
+            return;
+        }
+
+        boolean delivered = consumeWithRetry(key, event);
+        if (delivered && messageId != null) {
+            processedUpdateRepository.markProcessed(messageId);
+        }
+    }
+
+    private UUID parseMessageId(byte[] messageIdHeader) {
+        if (messageIdHeader == null || messageIdHeader.length == 0) {
+            return null;
+        }
+        try {
+            return UUID.fromString(new String(messageIdHeader, StandardCharsets.UTF_8));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     public void consume(LinkUpdateEvent event) {
@@ -92,26 +117,27 @@ public class KafkaLinkUpdateConsumer {
         }
     }
 
-    private void consumeWithRetry(String key, LinkUpdateEvent event) {
+    private boolean consumeWithRetry(String key, LinkUpdateEvent event) {
         int maxAttempts = kafkaProperties.getMaxAttempts();
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
                 consume(event);
-                return;
+                return true;
             } catch (IllegalArgumentException exception) {
                 publishValidationFailure(key, event, exception);
-                return;
+                return false;
             } catch (RuntimeException exception) {
                 if (attempt == maxAttempts) {
                     publishProcessingFailure(key, event, exception, attempt);
-                    return;
+                    return false;
                 }
                 if (!sleepBeforeRetry()) {
                     publishProcessingFailure(key, event, exception, attempt);
-                    return;
+                    return false;
                 }
             }
         }
+        return false;
     }
 
     private boolean sleepBeforeRetry() {
