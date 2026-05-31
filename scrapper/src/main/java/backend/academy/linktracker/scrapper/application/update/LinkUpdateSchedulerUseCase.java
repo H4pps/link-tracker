@@ -43,7 +43,7 @@ public class LinkUpdateSchedulerUseCase {
      */
     public void checkUpdates() {
         int pageSize = schedulerProperties.getLinkPageSize();
-        ExecutorService workerPool = Executors.newFixedThreadPool(workerCount());
+        ExecutorService workerPool = Executors.newFixedThreadPool(schedulerProperties.getWorkerCount());
         long offset = 0;
         try {
             while (true) {
@@ -66,10 +66,6 @@ public class LinkUpdateSchedulerUseCase {
                 workerPool.shutdown();
             }
         }
-    }
-
-    private int workerCount() {
-        return Math.max(1, schedulerProperties.getWorkerCount()); // guardrail for a bad config
     }
 
     private void processPage(List<TrackedLinkSnapshot> page, ExecutorService workerPool) {
@@ -110,13 +106,17 @@ public class LinkUpdateSchedulerUseCase {
         try {
             LinkSource source = linkSourceResolver.resolve(trackedLink.url()).orElse(null);
             if (source == null) {
-                scrapperLogger.logExternalFetchFailed("unsupported", trackedLink.url(), "UNSUPPORTED_URL");
+                String errorCode = "UNSUPPORTED_URL";
+                scrapperLogger.logExternalFetchFailed("unsupported", trackedLink.url(), errorCode);
+                reportFailedLink(trackedLink, errorCode);
                 return;
             }
 
             ExternalSourceReader reader = resolveReader(source);
             if (reader == null) {
-                scrapperLogger.logExternalFetchFailed(sourceName(source), trackedLink.url(), "NO_READER");
+                String errorCode = "NO_READER";
+                scrapperLogger.logExternalFetchFailed(sourceName(source), trackedLink.url(), errorCode);
+                reportFailedLink(trackedLink, errorCode);
                 return;
             }
 
@@ -149,8 +149,27 @@ public class LinkUpdateSchedulerUseCase {
                 checkpointRepository.save(trackedLink.url(), currentTimestamp);
             }
         } catch (ExternalSourceException exception) {
-            scrapperLogger.logExternalFetchFailed(
-                    "external", trackedLink.url(), exception.getClass().getSimpleName());
+            String errorCode = exception.getClass().getSimpleName();
+            scrapperLogger.logExternalFetchFailed("external", trackedLink.url(), errorCode);
+            reportFailedLink(trackedLink, errorCode);
+        } catch (RuntimeException exception) {
+            String errorCode = exception.getClass().getSimpleName();
+            scrapperLogger.logExternalFetchFailed("scheduler", trackedLink.url(), errorCode);
+            reportFailedLink(trackedLink, errorCode);
+        }
+    }
+
+    private void reportFailedLink(TrackedLinkSnapshot trackedLink, String errorCode) {
+        LinkUpdateNotification notification = new LinkUpdateNotification(
+                trackedLink.id(),
+                trackedLink.url(),
+                "Не удалось проверить ссылку\nURL: " + trackedLink.url() + "\nПричина: " + errorCode,
+                trackedLink.chatIds());
+        try {
+            scrapperLogger.logSchedulerNotifyAttempt(
+                    trackedLink.url(), trackedLink.chatIds().size());
+            boolean sent = botNotificationSender.send(notification);
+            scrapperLogger.logSchedulerNotifyResult(trackedLink.url(), sent);
         } catch (RuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(
                     "scheduler", trackedLink.url(), exception.getClass().getSimpleName());

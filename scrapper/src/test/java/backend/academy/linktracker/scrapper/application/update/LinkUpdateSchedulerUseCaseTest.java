@@ -407,6 +407,68 @@ class LinkUpdateSchedulerUseCaseTest {
     }
 
     @Test
+    void failedLinkSendsFailureReportToTrackedChatsWithoutSavingCheckpoint() {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot failed = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L, 11L));
+        TrackedLinkSnapshot successful = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        Instant successfulTimestamp = Instant.parse("2024-03-01T00:00:00Z");
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(failed, successful));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(failed.url())).thenReturn(Optional.of(new GithubLinkSource("a", "b")));
+        when(linkSourceResolver.resolve(successful.url())).thenReturn(Optional.of(new GithubLinkSource("c", "d")));
+        when(reader.fetchLatestUpdate(new GithubLinkSource("a", "b")))
+                .thenThrow(new ExternalSourceException("rate limited", null));
+        when(reader.fetchLatestUpdate(new GithubLinkSource("c", "d")))
+                .thenReturn(externalUpdateAt(successfulTimestamp));
+        when(checkpointRepository.findByUrl(successful.url())).thenReturn(Optional.empty());
+        when(notificationSender.send(any())).thenReturn(true);
+
+        useCase.checkUpdates();
+
+        ArgumentCaptor<LinkUpdateNotification> notificationCaptor =
+                ArgumentCaptor.forClass(LinkUpdateNotification.class);
+        verify(notificationSender).send(notificationCaptor.capture());
+        LinkUpdateNotification failureReport = notificationCaptor.getValue();
+        assertThat(failureReport.id()).isEqualTo(failed.id());
+        assertThat(failureReport.url()).isEqualTo(failed.url());
+        assertThat(failureReport.tgChatIds()).containsExactly(10L, 11L);
+        assertThat(failureReport.description())
+                .contains("Не удалось проверить ссылку")
+                .contains(failed.url())
+                .contains("ExternalSourceException");
+        verify(checkpointRepository, never()).save(eq(failed.url()), any());
+        verify(checkpointRepository).save(successful.url(), successfulTimestamp);
+    }
+
+    @Test
+    void failedLinkReportSendFailureDoesNotBlockSuccessfulSamePageLink() {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot failed = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot successful = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        Instant successfulTimestamp = Instant.parse("2024-03-01T00:00:00Z");
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(failed, successful));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(failed.url())).thenReturn(Optional.of(new GithubLinkSource("a", "b")));
+        when(linkSourceResolver.resolve(successful.url())).thenReturn(Optional.of(new GithubLinkSource("c", "d")));
+        when(reader.fetchLatestUpdate(new GithubLinkSource("a", "b")))
+                .thenThrow(new ExternalSourceException("rate limited", null));
+        when(reader.fetchLatestUpdate(new GithubLinkSource("c", "d")))
+                .thenReturn(externalUpdateAt(successfulTimestamp));
+        when(checkpointRepository.findByUrl(successful.url())).thenReturn(Optional.empty());
+        when(notificationSender.send(any())).thenThrow(new IllegalStateException("bot unavailable"));
+
+        useCase.checkUpdates();
+
+        verify(checkpointRepository).save(successful.url(), successfulTimestamp);
+    }
+
+    @Test
     void unexpectedWorkerExecutionFailureIsLoggedAndBatchContinues() {
         schedulerProperties.setWorkerCount(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));

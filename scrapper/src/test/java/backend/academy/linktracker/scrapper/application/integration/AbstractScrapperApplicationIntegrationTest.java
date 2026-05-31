@@ -217,7 +217,7 @@ abstract class AbstractScrapperApplicationIntegrationTest {
                         "--server.port=0",
                         "--app.grpc.server.port=0",
                         "--app.scheduler.enabled=false",
-                        "--app.scheduler.link-page-size=1",
+                        "--app.scheduler.link-page-size=50",
                         "--app.database.access-type=" + accessType(),
                         "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
                         "--spring.datasource.username=" + POSTGRES.getUsername(),
