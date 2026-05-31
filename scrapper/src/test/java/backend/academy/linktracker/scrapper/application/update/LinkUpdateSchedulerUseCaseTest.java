@@ -25,6 +25,11 @@ import backend.academy.linktracker.scrapper.properties.SchedulerProperties;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,6 +68,7 @@ class LinkUpdateSchedulerUseCaseTest {
         lenient().when(reader.supports(any())).thenReturn(true);
         schedulerProperties = new SchedulerProperties();
         schedulerProperties.setLinkPageSize(2);
+        schedulerProperties.setWorkerCount(1);
         useCase = new LinkUpdateSchedulerUseCase(
                 linkRepository,
                 linkSourceResolver,
@@ -137,6 +143,163 @@ class LinkUpdateSchedulerUseCaseTest {
 
         verify(notificationSender).send(any());
         verify(checkpointRepository, never()).save(snapshot.url(), currentTimestamp);
+    }
+
+    @Test
+    void workerCountOneKeepsSequentialProcessing() throws Exception {
+        schedulerProperties.setWorkerCount(1);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        GithubLinkSource firstSource = new GithubLinkSource("a", "b");
+        GithubLinkSource secondSource = new GithubLinkSource("c", "d");
+        Instant timestamp = Instant.parse("2024-06-01T00:00:00Z");
+        CountDownLatch secondFetchStarted = new CountDownLatch(1);
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(firstSource));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(secondSource));
+        when(reader.fetchLatestUpdate(firstSource)).thenAnswer(invocation -> {
+            boolean overlapped = secondFetchStarted.await(200, TimeUnit.MILLISECONDS);
+            assertThat(overlapped).isFalse();
+            return externalUpdateAt(timestamp);
+        });
+        when(reader.fetchLatestUpdate(secondSource)).thenAnswer(invocation -> {
+            secondFetchStarted.countDown();
+            return externalUpdateAt(timestamp);
+        });
+        when(checkpointRepository.findByUrl(any())).thenReturn(Optional.empty());
+
+        useCase.checkUpdates();
+
+        verify(checkpointRepository, times(2)).save(any(), eq(timestamp));
+    }
+
+    @Test
+    void workerCountTwoProcessesSamePageConcurrently() throws Exception {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        Instant timestamp = Instant.parse("2024-06-01T00:00:00Z");
+        CountDownLatch bothFetchesStarted = new CountDownLatch(2);
+        CountDownLatch releaseFetches = new CountDownLatch(1);
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(new GithubLinkSource("a", "b")));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(new GithubLinkSource("c", "d")));
+        when(reader.fetchLatestUpdate(any())).thenAnswer(invocation -> {
+            bothFetchesStarted.countDown();
+            assertThat(bothFetchesStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(releaseFetches.await(1, TimeUnit.SECONDS)).isTrue();
+            return externalUpdateAt(timestamp);
+        });
+        when(checkpointRepository.findByUrl(any())).thenReturn(Optional.empty());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> future = executor.submit(useCase::checkUpdates);
+            assertThat(bothFetchesStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            releaseFetches.countDown();
+            future.get(1, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        verify(checkpointRepository, times(2)).save(any(), eq(timestamp));
+    }
+
+    @Test
+    void pageZeroCompletesBeforePageOneFetchWhenConcurrent() throws Exception {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        TrackedLinkSnapshot third = new TrackedLinkSnapshot(3L, "https://github.com/e/f", List.of(30L));
+        GithubLinkSource firstSource = new GithubLinkSource("a", "b");
+        GithubLinkSource secondSource = new GithubLinkSource("c", "d");
+        GithubLinkSource thirdSource = new GithubLinkSource("e", "f");
+        Instant timestamp = Instant.parse("2024-06-01T00:00:00Z");
+        CountDownLatch firstPageStarted = new CountDownLatch(2);
+        CountDownLatch releaseFirstPage = new CountDownLatch(1);
+        CountDownLatch pageOneFetched = new CountDownLatch(1);
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenAnswer(invocation -> {
+                    pageOneFetched.countDown();
+                    return List.of(third);
+                });
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(firstSource));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(secondSource));
+        when(linkSourceResolver.resolve(third.url())).thenReturn(Optional.of(thirdSource));
+        when(reader.fetchLatestUpdate(any())).thenAnswer(invocation -> {
+            LinkSource source = invocation.getArgument(0);
+            if (source.equals(firstSource) || source.equals(secondSource)) {
+                firstPageStarted.countDown();
+                assertThat(releaseFirstPage.await(1, TimeUnit.SECONDS)).isTrue();
+            }
+            return externalUpdateAt(timestamp);
+        });
+        when(checkpointRepository.findByUrl(any())).thenReturn(Optional.empty());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> future = executor.submit(useCase::checkUpdates);
+            assertThat(firstPageStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(pageOneFetched.await(200, TimeUnit.MILLISECONDS)).isFalse();
+            releaseFirstPage.countDown();
+            future.get(1, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertThat(pageOneFetched.await(1, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void interruptionWhileWaitingCancelsWorkersAndPreventsNextPageFetch() throws Exception {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        GithubLinkSource firstSource = new GithubLinkSource("a", "b");
+        GithubLinkSource secondSource = new GithubLinkSource("c", "d");
+        CountDownLatch workersStarted = new CountDownLatch(2);
+        CountDownLatch workersInterrupted = new CountDownLatch(2);
+        CountDownLatch keepWorkersBlocked = new CountDownLatch(1);
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(firstSource));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(secondSource));
+        when(reader.fetchLatestUpdate(any())).thenAnswer(invocation -> {
+            workersStarted.countDown();
+            try {
+                keepWorkersBlocked.await();
+            } catch (InterruptedException exception) {
+                workersInterrupted.countDown();
+                throw new ExternalSourceException("interrupted", exception);
+            }
+            return externalUpdateAt(Instant.parse("2024-06-01T00:00:00Z"));
+        });
+
+        ExecutorService schedulerExecutor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> schedulerFuture = schedulerExecutor.submit(useCase::checkUpdates);
+            assertThat(workersStarted.await(1, TimeUnit.SECONDS)).isTrue();
+            assertThat(schedulerFuture.cancel(true)).isTrue();
+            assertThat(workersInterrupted.await(1, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            keepWorkersBlocked.countDown();
+            schedulerExecutor.shutdownNow();
+            schedulerExecutor.awaitTermination(1, TimeUnit.SECONDS);
+        }
+
+        verify(linkRepository, never()).findAllTrackedLinks(new RepositoryPageRequest(2, 2));
     }
 
     @Test
@@ -222,7 +385,8 @@ class LinkUpdateSchedulerUseCaseTest {
     }
 
     @Test
-    void sourceFailureIsIsolatedAndBatchContinues() {
+    void failedLinkDoesNotBlockSuccessfulSamePageLinkWhenConcurrent() {
+        schedulerProperties.setWorkerCount(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
@@ -243,7 +407,64 @@ class LinkUpdateSchedulerUseCaseTest {
     }
 
     @Test
+    void unexpectedWorkerExecutionFailureIsLoggedAndBatchContinues() {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
+        GithubLinkSource firstSource = new GithubLinkSource("a", "b");
+        GithubLinkSource secondSource = new GithubLinkSource("c", "d");
+        Instant secondTimestamp = Instant.parse("2024-03-01T00:00:00Z");
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(firstSource));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(secondSource));
+        when(reader.fetchLatestUpdate(firstSource)).thenThrow(new AssertionError("unexpected"));
+        when(reader.fetchLatestUpdate(secondSource)).thenReturn(externalUpdateAt(secondTimestamp));
+        when(checkpointRepository.findByUrl(second.url())).thenReturn(Optional.empty());
+
+        useCase.checkUpdates();
+
+        verify(checkpointRepository).save(second.url(), secondTimestamp);
+        verify(scrapperLogger).logExternalFetchFailed("scheduler", "worker-pool", "AssertionError");
+    }
+
+    @Test
+    void notificationFailureDoesNotSaveCheckpointUnderConcurrency() {
+        schedulerProperties.setWorkerCount(2);
+        TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L, 11L));
+        TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L, 21L));
+        GithubLinkSource firstSource = new GithubLinkSource("a", "b");
+        GithubLinkSource secondSource = new GithubLinkSource("c", "d");
+        Instant previousTimestamp = Instant.parse("2024-01-01T00:00:00Z");
+        Instant firstCurrentTimestamp = Instant.parse("2024-02-01T00:00:00Z");
+        Instant secondCurrentTimestamp = Instant.parse("2024-03-01T00:00:00Z");
+
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(first, second));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 2)))
+                .thenReturn(List.of());
+        when(linkSourceResolver.resolve(first.url())).thenReturn(Optional.of(firstSource));
+        when(linkSourceResolver.resolve(second.url())).thenReturn(Optional.of(secondSource));
+        when(reader.fetchLatestUpdate(firstSource)).thenReturn(externalUpdateAt(firstCurrentTimestamp));
+        when(reader.fetchLatestUpdate(secondSource)).thenReturn(externalUpdateAt(secondCurrentTimestamp));
+        when(checkpointRepository.findByUrl(any())).thenReturn(Optional.of(previousTimestamp));
+        when(notificationSender.send(any())).thenAnswer(invocation -> {
+            LinkUpdateNotification notification = invocation.getArgument(0);
+            return !notification.url().equals(first.url());
+        });
+
+        useCase.checkUpdates();
+
+        verify(checkpointRepository, never()).save(first.url(), firstCurrentTimestamp);
+        verify(checkpointRepository).save(second.url(), secondCurrentTimestamp);
+    }
+
+    @Test
     void checkUpdatesProcessesPagesUntilShortPage() {
+        schedulerProperties.setWorkerCount(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         TrackedLinkSnapshot third = new TrackedLinkSnapshot(3L, "https://github.com/e/f", List.of(30L));

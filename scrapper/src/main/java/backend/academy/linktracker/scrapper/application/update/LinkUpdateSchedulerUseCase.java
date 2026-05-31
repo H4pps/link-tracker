@@ -11,8 +11,13 @@ import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.SchedulerProperties;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -38,21 +43,66 @@ public class LinkUpdateSchedulerUseCase {
      */
     public void checkUpdates() {
         int pageSize = schedulerProperties.getLinkPageSize();
+        ExecutorService workerPool = Executors.newFixedThreadPool(workerCount());
         long offset = 0;
-        while (true) {
-            List<TrackedLinkSnapshot> page =
-                    linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
-            if (page.isEmpty()) {
-                return;
-            }
+        try {
+            while (true) {
+                List<TrackedLinkSnapshot> page =
+                        linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
+                if (page.isEmpty()) {
+                    return;
+                }
 
-            for (TrackedLinkSnapshot trackedLink : page) {
-                processTrackedLink(trackedLink);
+                processPage(page, workerPool);
+                if (page.size() < pageSize) {
+                    return;
+                }
+                offset += page.size();
             }
-            if (page.size() < pageSize) {
-                return;
+        } finally {
+            if (Thread.currentThread().isInterrupted()) {
+                workerPool.shutdownNow();
+            } else {
+                workerPool.shutdown();
             }
-            offset += page.size();
+        }
+    }
+
+    private int workerCount() {
+        return Math.max(1, schedulerProperties.getWorkerCount()); // guardrail for a bad config
+    }
+
+    private void processPage(List<TrackedLinkSnapshot> page, ExecutorService workerPool) {
+        List<Future<?>> futures = new ArrayList<>(page.size());
+        for (TrackedLinkSnapshot trackedLink : page) {
+            futures.add(workerPool.submit(() -> processTrackedLink(trackedLink)));
+        }
+        waitForPageCompletion(futures);
+    }
+
+    private void waitForPageCompletion(List<Future<?>> futures) {
+        for (Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                cancelOutstandingFutures(futures);
+                throw new IllegalStateException("Scheduler page processing interrupted", exception);
+            } catch (ExecutionException exception) {
+                Throwable cause = exception.getCause();
+                String errorCode = cause == null
+                        ? exception.getClass().getSimpleName()
+                        : cause.getClass().getSimpleName();
+                scrapperLogger.logExternalFetchFailed("scheduler", "worker-pool", errorCode);
+            }
+        }
+    }
+
+    private void cancelOutstandingFutures(List<Future<?>> futures) {
+        for (Future<?> future : futures) {
+            if (!future.isDone()) {
+                future.cancel(true);
+            }
         }
     }
 

@@ -25,4 +25,6 @@ public class SchedulerProperties {
     private Duration interval = Duration.ofSeconds(30);
 
     private int linkPageSize = 100;
+
+    private int workerCount = 1;
 }
