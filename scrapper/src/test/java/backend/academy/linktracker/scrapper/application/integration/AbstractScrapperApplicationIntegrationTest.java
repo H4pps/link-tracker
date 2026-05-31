@@ -26,6 +26,7 @@ import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.infrastructure.external.GithubExternalSourceReader;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -171,8 +172,8 @@ abstract class AbstractScrapperApplicationIntegrationTest {
         AtomicReference<Instant> externalTimestamp = new AtomicReference<>(firstTimestamp);
         when(githubExternalSourceReader.supports(any())).thenReturn(true);
         when(githubExternalSourceReader.fetchLatestUpdate(any()))
-                .thenAnswer(ignored -> new ExternalUpdate(
-                        ExternalUpdateType.GITHUB_ISSUE, externalTimestamp.get(), "title", "author", "preview"));
+                .thenAnswer(ignored -> Optional.of(new ExternalUpdate(
+                        ExternalUpdateType.GITHUB_ISSUE, externalTimestamp.get(), "title", "author", "preview")));
         when(botNotificationSender.send(any())).thenReturn(true);
 
         schedulerUseCase.checkUpdates();

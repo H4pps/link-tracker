@@ -2,6 +2,7 @@ package backend.academy.linktracker.scrapper.application.external;
 
 import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
 import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
+import java.util.Optional;
 
 /**
  * Reads latest update metadata from external source.
@@ -20,7 +21,8 @@ public interface ExternalSourceReader {
      * Fetches latest update metadata for source item.
      *
      * @param source parsed source descriptor
-     * @return external update metadata
+     * @return latest update metadata, or empty when the source has nothing to report yet
+     * @throws ExternalSourceException when the external source cannot be queried
      */
-    ExternalUpdate fetchLatestUpdate(LinkSource source);
+    Optional<ExternalUpdate> fetchLatestUpdate(LinkSource source);
 }

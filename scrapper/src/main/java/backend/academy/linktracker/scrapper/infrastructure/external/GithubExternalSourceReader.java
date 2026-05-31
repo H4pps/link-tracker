@@ -10,6 +10,7 @@ import backend.academy.linktracker.scrapper.infrastructure.external.dto.github.G
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.GithubProperties;
 import java.time.Instant;
+import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -57,7 +58,7 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
      * {@inheritDoc}
      */
     @Override
-    public ExternalUpdate fetchLatestUpdate(LinkSource source) {
+    public Optional<ExternalUpdate> fetchLatestUpdate(LinkSource source) {
         GithubLinkSource githubSource = cast(source);
         try {
             GithubIssueItemResponse[] response = restClient
@@ -71,9 +72,9 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
                     .retrieve()
                     .body(GithubIssueItemResponse[].class);
             if (response == null || response.length == 0) {
-                throw new ExternalSourceException("GitHub response has no issue items", null);
+                return Optional.empty();
             }
-            return mapLatestUpdate(response[0]);
+            return Optional.of(mapLatestUpdate(response[0]));
         } catch (RuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(
                     "github",

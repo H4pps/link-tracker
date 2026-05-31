@@ -120,7 +120,12 @@ public class LinkUpdateSchedulerUseCase {
                 return;
             }
 
-            ExternalUpdate latestUpdate = reader.fetchLatestUpdate(source);
+            ExternalUpdate latestUpdate =
+                    reader.fetchLatestUpdate(source).orElse(null);
+            if (latestUpdate == null) {
+                scrapperLogger.logSchedulerProcessed(trackedLink.url(), false);
+                return;
+            }
             Instant currentTimestamp = latestUpdate.createdAt();
             Instant previousTimestamp =
                     checkpointRepository.findByUrl(trackedLink.url()).orElse(null);

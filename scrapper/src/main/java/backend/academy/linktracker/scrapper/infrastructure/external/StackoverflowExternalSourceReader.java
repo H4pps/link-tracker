@@ -13,6 +13,7 @@ import backend.academy.linktracker.scrapper.infrastructure.external.dto.stackove
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.StackoverflowProperties;
 import java.time.Instant;
+import java.util.Optional;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -63,7 +64,7 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
      * {@inheritDoc}
      */
     @Override
-    public ExternalUpdate fetchLatestUpdate(LinkSource source) {
+    public Optional<ExternalUpdate> fetchLatestUpdate(LinkSource source) {
         StackoverflowQuestionLinkSource stackoverflowSource = cast(source);
         try {
             long questionId = stackoverflowSource.questionId();
@@ -72,13 +73,13 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
             StackoverflowUpdateItem latestComment = fetchLatestComment(questionId);
 
             if (latestAnswer == null && latestComment == null) {
-                throw new ExternalSourceException("StackOverflow response has no answer/comment items", null);
+                return Optional.empty();
             }
 
             if (isMoreRecent(latestAnswer, latestComment)) {
-                return mapUpdate(ExternalUpdateType.STACKOVERFLOW_ANSWER, questionTitle, latestAnswer);
+                return Optional.of(mapUpdate(ExternalUpdateType.STACKOVERFLOW_ANSWER, questionTitle, latestAnswer));
             }
-            return mapUpdate(ExternalUpdateType.STACKOVERFLOW_COMMENT, questionTitle, latestComment);
+            return Optional.of(mapUpdate(ExternalUpdateType.STACKOVERFLOW_COMMENT, questionTitle, latestComment));
         } catch (RuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(
                     "stackoverflow",

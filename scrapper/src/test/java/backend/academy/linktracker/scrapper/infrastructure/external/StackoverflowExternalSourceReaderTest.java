@@ -64,7 +64,8 @@ class StackoverflowExternalSourceReaderTest {
                 }
                 """);
 
-        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123));
+        ExternalUpdate update =
+                reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)).orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_ANSWER);
         assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");
@@ -91,7 +92,8 @@ class StackoverflowExternalSourceReaderTest {
                 }
                 """);
 
-        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123));
+        ExternalUpdate update =
+                reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)).orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_COMMENT);
         assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");
@@ -101,13 +103,13 @@ class StackoverflowExternalSourceReaderTest {
     }
 
     @Test
-    void throwsOnEmptyAnswerAndCommentPayloads() {
+    void returnsEmptyWhenQuestionHasNoAnswersOrComments() {
         stubQuestionTitle("How to paginate scheduler link checks?");
         stubAnswers("{\"items\":[]}");
         stubComments("{\"items\":[]}");
 
-        assertThatThrownBy(() -> reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
-                .isInstanceOf(ExternalSourceException.class);
+        assertThat(reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isEmpty();
     }
 
     @Test

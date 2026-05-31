@@ -111,6 +111,21 @@ class LinkUpdateSchedulerUseCaseTest {
     }
 
     @Test
+    void emptyExternalUpdateSkipsLinkWithoutNotificationOrCheckpoint() {
+        TrackedLinkSnapshot snapshot = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of(snapshot));
+        when(linkSourceResolver.resolve(snapshot.url())).thenReturn(Optional.of(new GithubLinkSource("a", "b")));
+        when(reader.fetchLatestUpdate(any())).thenReturn(Optional.empty());
+
+        useCase.checkUpdates();
+
+        verify(notificationSender, never()).send(any());
+        verify(checkpointRepository, never()).save(any(), any());
+        verify(checkpointRepository, never()).findByUrl(any());
+    }
+
+    @Test
     void changedTimestampSendsNotificationAndUpdatesCheckpoint() {
         TrackedLinkSnapshot snapshot = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L, 20L));
         when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
@@ -565,7 +580,7 @@ class LinkUpdateSchedulerUseCaseTest {
         when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
                 .thenReturn(List.of(snapshot));
         when(linkSourceResolver.resolve(snapshot.url())).thenReturn(Optional.of(source));
-        when(reader.fetchLatestUpdate(source)).thenReturn(latestUpdate);
+        when(reader.fetchLatestUpdate(source)).thenReturn(Optional.of(latestUpdate));
         when(checkpointRepository.findByUrl(snapshot.url())).thenReturn(Optional.of(previousTimestamp));
         when(notificationSender.send(any())).thenReturn(true);
 
@@ -577,8 +592,8 @@ class LinkUpdateSchedulerUseCaseTest {
         return notificationCaptor.getValue().description();
     }
 
-    private ExternalUpdate externalUpdateAt(Instant createdAt) {
-        return new ExternalUpdate(ExternalUpdateType.GITHUB_ISSUE, createdAt, "title", "author", "preview");
+    private Optional<ExternalUpdate> externalUpdateAt(Instant createdAt) {
+        return Optional.of(new ExternalUpdate(ExternalUpdateType.GITHUB_ISSUE, createdAt, "title", "author", "preview"));
     }
 
     private ExternalUpdate externalUpdateFromExpectation(RichDescriptionExpectation expected, ExternalUpdateType type) {

@@ -65,7 +65,8 @@ class GithubExternalSourceReaderTest {
                                 ]
                                 """)));
 
-        ExternalUpdate update = reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World"));
+        ExternalUpdate update = reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World"))
+                .orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.GITHUB_ISSUE);
         assertThat(update.title()).isEqualTo("Fix scheduler retries");
@@ -99,7 +100,8 @@ class GithubExternalSourceReaderTest {
                                 ]
                                 """)));
 
-        ExternalUpdate update = reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World"));
+        ExternalUpdate update = reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World"))
+                .orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.GITHUB_PULL_REQUEST);
         assertThat(update.title()).isEqualTo("feat: add metadata payload");
@@ -109,15 +111,15 @@ class GithubExternalSourceReaderTest {
     }
 
     @Test
-    void throwsOnEmptyPayload() {
+    void returnsEmptyWhenRepositoryHasNoIssuesOrPullRequests() {
         stubFor(get(urlPathEqualTo("/repos/octocat/Hello-World/issues"))
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody("[]")));
 
-        assertThatThrownBy(() -> reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World")))
-                .isInstanceOf(ExternalSourceException.class);
+        assertThat(reader.fetchLatestUpdate(new GithubLinkSource("octocat", "Hello-World")))
+                .isEmpty();
     }
 
     @Test
