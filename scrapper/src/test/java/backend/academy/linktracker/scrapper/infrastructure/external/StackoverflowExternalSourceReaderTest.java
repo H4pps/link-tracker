@@ -64,8 +64,8 @@ class StackoverflowExternalSourceReaderTest {
                 }
                 """);
 
-        ExternalUpdate update =
-                reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)).orElseThrow();
+        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123))
+                .orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_ANSWER);
         assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");
@@ -92,8 +92,8 @@ class StackoverflowExternalSourceReaderTest {
                 }
                 """);
 
-        ExternalUpdate update =
-                reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)).orElseThrow();
+        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123))
+                .orElseThrow();
 
         assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_COMMENT);
         assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");

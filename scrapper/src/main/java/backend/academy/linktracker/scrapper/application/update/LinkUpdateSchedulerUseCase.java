@@ -120,8 +120,7 @@ public class LinkUpdateSchedulerUseCase {
                 return;
             }
 
-            ExternalUpdate latestUpdate =
-                    reader.fetchLatestUpdate(source).orElse(null);
+            ExternalUpdate latestUpdate = reader.fetchLatestUpdate(source).orElse(null);
             if (latestUpdate == null) {
                 scrapperLogger.logSchedulerProcessed(trackedLink.url(), false);
                 return;

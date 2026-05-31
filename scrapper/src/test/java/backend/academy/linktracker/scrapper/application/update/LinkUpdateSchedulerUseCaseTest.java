@@ -593,7 +593,8 @@ class LinkUpdateSchedulerUseCaseTest {
     }
 
     private Optional<ExternalUpdate> externalUpdateAt(Instant createdAt) {
-        return Optional.of(new ExternalUpdate(ExternalUpdateType.GITHUB_ISSUE, createdAt, "title", "author", "preview"));
+        return Optional.of(
+                new ExternalUpdate(ExternalUpdateType.GITHUB_ISSUE, createdAt, "title", "author", "preview"));
     }
 
     private ExternalUpdate externalUpdateFromExpectation(RichDescriptionExpectation expected, ExternalUpdateType type) {
