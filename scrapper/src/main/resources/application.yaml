@@ -34,6 +34,7 @@ app:
     enabled: ${APP_SCHEDULER_ENABLED:true}
     interval: ${APP_SCHEDULER_INTERVAL:30s}
     link-page-size: ${APP_SCHEDULER_LINK_PAGE_SIZE:100}
+    worker-count: ${APP_SCHEDULER_WORKER_COUNT:1}
   database:
     access-type: ${APP_DATABASE_ACCESS_TYPE:SQL}
   stackoverflow:

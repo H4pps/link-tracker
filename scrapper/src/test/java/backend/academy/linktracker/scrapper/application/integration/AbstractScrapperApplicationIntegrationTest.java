@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 
 import backend.academy.linktracker.scrapper.ScrapperApplication;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
+import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdateType;
 import backend.academy.linktracker.scrapper.application.link.AddLinkCommand;
 import backend.academy.linktracker.scrapper.application.link.LinkView;
 import backend.academy.linktracker.scrapper.application.link.RemoveLinkCommand;
@@ -24,6 +26,7 @@ import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.infrastructure.external.GithubExternalSourceReader;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -168,7 +171,9 @@ abstract class AbstractScrapperApplicationIntegrationTest {
 
         AtomicReference<Instant> externalTimestamp = new AtomicReference<>(firstTimestamp);
         when(githubExternalSourceReader.supports(any())).thenReturn(true);
-        when(githubExternalSourceReader.fetchLastUpdated(any())).thenAnswer(ignored -> externalTimestamp.get());
+        when(githubExternalSourceReader.fetchLatestUpdate(any()))
+                .thenAnswer(ignored -> Optional.of(new ExternalUpdate(
+                        ExternalUpdateType.GITHUB_ISSUE, externalTimestamp.get(), "title", "author", "preview")));
         when(botNotificationSender.send(any())).thenReturn(true);
 
         schedulerUseCase.checkUpdates();
@@ -183,18 +188,22 @@ abstract class AbstractScrapperApplicationIntegrationTest {
         externalTimestamp.set(changedTimestamp);
         schedulerUseCase.checkUpdates();
 
+        String expectedDescription = """
+                Type: GitHub Issue
+                Title: title
+                Author: author
+                Created at: %s
+                Preview: preview
+                """.formatted(changedTimestamp).trim();
+
         ArgumentCaptor<LinkUpdateNotification> notificationCaptor =
                 ArgumentCaptor.forClass(LinkUpdateNotification.class);
         verify(botNotificationSender, times(2)).send(notificationCaptor.capture());
         assertThat(notificationCaptor.getAllValues())
                 .containsExactlyInAnyOrder(
                         new LinkUpdateNotification(
-                                sharedFirst.id(),
-                                sharedUrl,
-                                "Обнаружены изменения",
-                                List.of(firstChatId, secondChatId)),
-                        new LinkUpdateNotification(
-                                unique.id(), uniqueUrl, "Обнаружены изменения", List.of(thirdChatId)));
+                                sharedFirst.id(), sharedUrl, expectedDescription, List.of(firstChatId, secondChatId)),
+                        new LinkUpdateNotification(unique.id(), uniqueUrl, expectedDescription, List.of(thirdChatId)));
 
         assertThat(checkpointRepository.findByUrl(sharedUrl)).contains(changedTimestamp);
         assertThat(checkpointRepository.findByUrl(uniqueUrl)).contains(changedTimestamp);
@@ -209,7 +218,7 @@ abstract class AbstractScrapperApplicationIntegrationTest {
                         "--server.port=0",
                         "--app.grpc.server.port=0",
                         "--app.scheduler.enabled=false",
-                        "--app.scheduler.link-page-size=1",
+                        "--app.scheduler.link-page-size=50",
                         "--app.database.access-type=" + accessType(),
                         "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
                         "--spring.datasource.username=" + POSTGRES.getUsername(),

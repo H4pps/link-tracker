@@ -1,4 +1,6 @@
-package backend.academy.linktracker.scrapper.application.external;
+package backend.academy.linktracker.scrapper.application.external.link.github;
+
+import backend.academy.linktracker.scrapper.application.external.link.LinkSource;
 
 /**
  * Parsed GitHub repository source.

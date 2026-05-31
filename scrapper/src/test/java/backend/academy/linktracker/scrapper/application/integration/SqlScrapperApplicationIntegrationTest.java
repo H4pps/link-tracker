@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
             "server.port=0",
             "app.grpc.server.port=0",
             "app.scheduler.enabled=false",
-            "app.scheduler.link-page-size=1",
+            "app.scheduler.link-page-size=50",
             "app.database.access-type=SQL",
             "app.github.token=test-github-token",
             "app.stackoverflow.key=test-stackoverflow-key",
