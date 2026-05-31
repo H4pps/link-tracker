@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
+import backend.academy.linktracker.bot.application.update.ProcessedUpdateRepository;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -40,6 +41,9 @@ class KafkaLinkUpdateConsumerTest {
     @Mock
     private KafkaTemplate<String, byte[]> kafkaBytesTemplate;
 
+    @Mock
+    private ProcessedUpdateRepository processedUpdateRepository;
+
     private KafkaProperties kafkaProperties;
     private KafkaLinkUpdateConsumer consumer;
 
@@ -51,7 +55,12 @@ class KafkaLinkUpdateConsumerTest {
         kafkaProperties.setMaxAttempts(3);
         kafkaProperties.setRetryBackoff(Duration.ZERO);
         consumer = new KafkaLinkUpdateConsumer(
-                botUpdateUseCase, kafkaProperties, kafkaAvroDeserializer, kafkaTemplate, kafkaBytesTemplate);
+                botUpdateUseCase,
+                kafkaProperties,
+                kafkaAvroDeserializer,
+                kafkaTemplate,
+                kafkaBytesTemplate,
+                processedUpdateRepository);
     }
 
     @Test
@@ -74,7 +83,7 @@ class KafkaLinkUpdateConsumerTest {
         when(kafkaAvroDeserializer.deserialize("link-updates", payload))
                 .thenReturn(event(0L, "https://example.com", "changed", List.of(10L)));
 
-        consumer.listen(payload, "key-1");
+        consumer.listen(payload, "key-1", null);
 
         verify(botUpdateUseCase, never()).processLinkUpdate(any());
         verify(kafkaTemplate).send(any(ProducerRecord.class));
@@ -86,7 +95,7 @@ class KafkaLinkUpdateConsumerTest {
         when(kafkaAvroDeserializer.deserialize("link-updates", payload))
                 .thenThrow(new IllegalStateException("broken avro payload"));
 
-        consumer.listen(payload, "key-2");
+        consumer.listen(payload, "key-2", null);
 
         verify(botUpdateUseCase, never()).processLinkUpdate(any());
         ArgumentCaptor<ProducerRecord<String, byte[]>> recordCaptor = ArgumentCaptor.forClass(ProducerRecord.class);
@@ -105,7 +114,7 @@ class KafkaLinkUpdateConsumerTest {
                 .when(botUpdateUseCase)
                 .processLinkUpdate(any());
 
-        consumer.listen(payload, "key-3");
+        consumer.listen(payload, "key-3", null);
 
         verify(botUpdateUseCase, times(3)).processLinkUpdate(any());
         ArgumentCaptor<ProducerRecord<String, LinkUpdateEvent>> recordCaptor =
@@ -126,7 +135,7 @@ class KafkaLinkUpdateConsumerTest {
                 .when(botUpdateUseCase)
                 .processLinkUpdate(any());
 
-        consumer.listen(payload, "key-4");
+        consumer.listen(payload, "key-4", null);
 
         verify(botUpdateUseCase, times(2)).processLinkUpdate(any());
         verify(kafkaTemplate, never()).send(any(ProducerRecord.class));

@@ -31,6 +31,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -43,6 +44,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -57,8 +60,17 @@ class KafkaConsumerIntegrationTest {
     private static final String LINK_UPDATES_TOPIC = "link-updates";
     private static final String LINK_UPDATES_DLQ_TOPIC = "link-updates-dlq";
 
+    @Container
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
+            .withDatabaseName("link_tracker")
+            .withUsername("link_tracker")
+            .withPassword("link_tracker");
+
     @DynamicPropertySource
     static void registerProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", POSTGRES::getUsername);
+        registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("app.kafka.bootstrap-servers", KafkaTestCluster::bootstrapServers);
         registry.add("app.kafka.schema-registry-url", KafkaTestCluster::schemaRegistryUrl);
         registry.add("spring.kafka.bootstrap-servers", KafkaTestCluster::bootstrapServers);
@@ -140,7 +152,30 @@ class KafkaConsumerIntegrationTest {
         verify(botUpdateUseCase, times(2)).processLinkUpdate(argThat(command -> command.id() == id));
     }
 
+    @Test
+    void duplicateMessageIdIsProcessedOnlyOnce() {
+        long id = 2002L;
+        String messageId = UUID.randomUUID().toString();
+        LinkUpdateEvent event = new LinkUpdateEvent(id, "https://github.com/acme/repo", "changed", List.of(10L));
+
+        publishAvro("dup-a-" + id, event, messageId);
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> verify(botUpdateUseCase, times(1))
+                .processLinkUpdate(argThat(command -> command.id() == id)));
+
+        // Redeliver the same logical event (same message-id) under a different Kafka key.
+        publishAvro("dup-b-" + id, event, messageId);
+        Awaitility.await()
+                .pollDelay(Duration.ofSeconds(3))
+                .atMost(Duration.ofSeconds(6))
+                .untilAsserted(() ->
+                        verify(botUpdateUseCase, times(1)).processLinkUpdate(argThat(command -> command.id() == id)));
+    }
+
     private void publishAvro(String key, LinkUpdateEvent event) {
+        publishAvro(key, event, UUID.randomUUID().toString());
+    }
+
+    private void publishAvro(String key, LinkUpdateEvent event, String messageId) {
         Map<String, Object> config = Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 KafkaTestCluster.bootstrapServers(),
@@ -151,7 +186,9 @@ class KafkaConsumerIntegrationTest {
                 AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
                 KafkaTestCluster.schemaRegistryUrl());
         try (KafkaProducer<String, LinkUpdateEvent> producer = new KafkaProducer<>(config)) {
-            producer.send(new ProducerRecord<>(LINK_UPDATES_TOPIC, key, event));
+            ProducerRecord<String, LinkUpdateEvent> record = new ProducerRecord<>(LINK_UPDATES_TOPIC, key, event);
+            record.headers().add(new RecordHeader("message-id", messageId.getBytes(StandardCharsets.UTF_8)));
+            producer.send(record);
             producer.flush();
         }
     }

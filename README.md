@@ -60,6 +60,11 @@ APP_DATABASE_ACCESS_TYPE=SQL
   - `APP_KAFKA_OUTBOX_BATCH_SIZE`
   - `APP_KAFKA_OUTBOX_PUBLISH_INTERVAL`
 
+Консьюмер Bot идемпотентен: каждое уведомление помечается стабильным `message-id` (UUID из outbox-строки,
+передаётся в Kafka-заголовке) и хранится в таблице `processed_link_updates`, поэтому повторная доставка одного
+и того же сообщения не приводит к дублю уведомления пользователю. Для этого Bot тоже подключается к PostgreSQL
+(`SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`).
+
 Корневой `.env.example` рассчитан на запуск через Docker Compose, поэтому межсервисные адреса используют имена контейнеров: `postgres`, `scrapper`, `bot`.
 
 ## Запуск через Docker Compose

@@ -126,15 +126,22 @@ class KafkaOutboxIntegrationTest {
 
             publisher.publishDueEvents();
 
-            List<LinkUpdateEvent> events = pollEvents(consumer, Duration.ofSeconds(15));
-            LinkUpdateEvent event = events.stream()
-                    .filter(candidate -> candidate.getId() == 77L)
+            List<ConsumerRecord<String, LinkUpdateEvent>> records = pollRecords(consumer, Duration.ofSeconds(15));
+            ConsumerRecord<String, LinkUpdateEvent> record = records.stream()
+                    .filter(candidate -> candidate.value().getId() == 77L)
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Avro event was not published to " + LINK_UPDATES_TOPIC));
+            LinkUpdateEvent event = record.value();
 
             assertThat(String.valueOf(event.getUrl())).isEqualTo("https://github.com/acme/repo");
             assertThat(String.valueOf(event.getDescription())).isEqualTo("changed: new issue opened");
             assertThat(event.getTgChatIds()).containsExactly(101L, 202L);
+
+            org.apache.kafka.common.header.Header messageIdHeader =
+                    record.headers().lastHeader("message-id");
+            assertThat(messageIdHeader).as("message-id header must be present").isNotNull();
+            assertThat(new String(messageIdHeader.value(), java.nio.charset.StandardCharsets.UTF_8))
+                    .isNotBlank();
 
             assertThat(statusOf(outboxId)).isEqualTo("SENT");
             assertThat(sentAtOf(outboxId)).isNotNull();
@@ -171,16 +178,17 @@ class KafkaOutboxIntegrationTest {
         return consumer;
     }
 
-    private List<LinkUpdateEvent> pollEvents(KafkaConsumer<String, LinkUpdateEvent> consumer, Duration timeout) {
-        List<LinkUpdateEvent> events = new ArrayList<>();
+    private List<ConsumerRecord<String, LinkUpdateEvent>> pollRecords(
+            KafkaConsumer<String, LinkUpdateEvent> consumer, Duration timeout) {
+        List<ConsumerRecord<String, LinkUpdateEvent>> collected = new ArrayList<>();
         long deadline = System.nanoTime() + timeout.toNanos();
-        while (System.nanoTime() < deadline && events.isEmpty()) {
+        while (System.nanoTime() < deadline && collected.isEmpty()) {
             ConsumerRecords<String, LinkUpdateEvent> records = consumer.poll(Duration.ofMillis(500));
             for (ConsumerRecord<String, LinkUpdateEvent> record : records) {
-                events.add(record.value());
+                collected.add(record);
             }
         }
-        return events;
+        return collected;
     }
 
     private KafkaTemplate<String, LinkUpdateEvent> deadBrokerTemplate() {

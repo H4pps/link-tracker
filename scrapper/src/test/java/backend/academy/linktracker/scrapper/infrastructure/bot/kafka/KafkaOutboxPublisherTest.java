@@ -15,7 +15,9 @@ import backend.academy.linktracker.scrapper.properties.KafkaProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +53,7 @@ class KafkaOutboxPublisherTest {
     void marksEventSentAfterKafkaAck() {
         LinkUpdateOutboxEvent pending = new LinkUpdateOutboxEvent(
                 10L,
+                UUID.randomUUID(),
                 11L,
                 "https://example.com",
                 "changed",
@@ -63,8 +66,7 @@ class KafkaOutboxPublisherTest {
                 Instant.now(),
                 null);
         when(outboxRepository.findPending(any(), eq(10))).thenReturn(List.of(pending));
-        when(kafkaTemplate.send(eq("link-updates"), eq("https://example.com"), any(LinkUpdateEvent.class)))
-                .thenReturn(CompletableFuture.completedFuture(null));
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
 
         publisher.publishDueEvents();
 
@@ -76,6 +78,7 @@ class KafkaOutboxPublisherTest {
     void marksEventFailedWhenKafkaSendFails() {
         LinkUpdateOutboxEvent pending = new LinkUpdateOutboxEvent(
                 10L,
+                UUID.randomUUID(),
                 11L,
                 "https://example.com",
                 "changed",
@@ -91,8 +94,7 @@ class KafkaOutboxPublisherTest {
         failedFuture.completeExceptionally(new IllegalStateException("kafka unavailable"));
 
         when(outboxRepository.findPending(any(), eq(10))).thenReturn(List.of(pending));
-        when(kafkaTemplate.send(eq("link-updates"), eq("https://example.com"), any(LinkUpdateEvent.class)))
-                .thenReturn((CompletableFuture) failedFuture);
+        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn((CompletableFuture) failedFuture);
 
         publisher.publishDueEvents();
 

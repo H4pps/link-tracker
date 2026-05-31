@@ -88,6 +88,9 @@ class ScrapperMigrationTest {
 
         assertThat(appliedChangeSetCount("001-create-scrapper-storage")).isEqualTo(1);
         assertThat(appliedChangeSetCount("002-create-link-update-outbox")).isEqualTo(1);
+        assertThat(appliedChangeSetCount("003-add-outbox-message-id")).isEqualTo(1);
+        assertThat(columnIsRequired("link_update_outbox", "message_id")).isTrue();
+        assertThat(indexExists("idx_link_update_outbox_message_id")).isTrue();
     }
 
     private List<String> existingTables() {
