@@ -6,6 +6,16 @@ spring:
     name: scrapper
   config:
     import: optional:file:.env[.properties],optional:file:scrapper/.env[.properties]
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+    properties:
+      schema.registry.url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/link_tracker}
     username: ${SPRING_DATASOURCE_USERNAME:link_tracker}
@@ -23,13 +33,23 @@ app:
     server:
       port: ${APP_SCRAPPER_GRPC_SERVER_PORT:9091}
   bot:
-    mode: ${APP_BOT_MODE:grpc}
+    mode: ${APP_BOT_MODE:kafka}
     base-url: ${APP_BOT_BASE_URL:http://localhost:8080}
     grpc-host: ${APP_BOT_GRPC_HOST:localhost}
     grpc-port: ${APP_BOT_GRPC_PORT:9090}
     grpc-deadline: ${APP_BOT_GRPC_DEADLINE:3s}
     connect-timeout: ${APP_BOT_CONNECT_TIMEOUT:2s}
     read-timeout: ${APP_BOT_READ_TIMEOUT:5s}
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    schema-registry-url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+    link-updates-topic: ${APP_KAFKA_LINK_UPDATES_TOPIC:link-updates}
+    link-updates-dlq-topic: ${APP_KAFKA_LINK_UPDATES_DLQ_TOPIC:link-updates-dlq}
+    consumer-group: ${APP_KAFKA_CONSUMER_GROUP:link-tracker-bot}
+    max-attempts: ${APP_KAFKA_MAX_ATTEMPTS:3}
+    retry-backoff: ${APP_KAFKA_RETRY_BACKOFF:1s}
+    outbox-batch-size: ${APP_KAFKA_OUTBOX_BATCH_SIZE:100}
+    outbox-publish-interval: ${APP_KAFKA_OUTBOX_PUBLISH_INTERVAL:5s}
   scheduler:
     enabled: ${APP_SCHEDULER_ENABLED:true}
     interval: ${APP_SCHEDULER_INTERVAL:30s}

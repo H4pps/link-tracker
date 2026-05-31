@@ -1,6 +1,5 @@
 package backend.academy.linktracker.scrapper.properties;
 
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import java.time.Duration;
@@ -15,44 +14,41 @@ import org.springframework.boot.convert.DurationUnit;
 import org.springframework.validation.annotation.Validated;
 
 /**
- * Typed properties for scrapper-to-bot HTTP notifications.
+ * Typed properties for Kafka transport and outbox publishing.
  */
-@ConfigurationProperties(prefix = "app.bot")
+@ConfigurationProperties(prefix = "app.kafka")
 @Validated
 @Getter
 @Setter
 @EqualsAndHashCode
 @NoArgsConstructor
-public class BotProperties {
+public class KafkaProperties {
 
-    private TransportMode mode = TransportMode.KAFKA;
+    @NotEmpty
+    private String bootstrapServers = "localhost:9092";
 
     @NotEmpty
     @URL
-    private String baseUrl = "http://localhost:8080";
+    private String schemaRegistryUrl = "http://localhost:8085";
 
     @NotEmpty
-    private String grpcHost = "localhost";
+    private String linkUpdatesTopic = "link-updates";
+
+    @NotEmpty
+    private String linkUpdatesDlqTopic = "link-updates-dlq";
+
+    @NotEmpty
+    private String consumerGroup = "link-tracker-bot";
 
     @Min(1)
-    @Max(65535)
-    private int grpcPort = 9090;
+    private int maxAttempts = 3;
 
     @DurationUnit(ChronoUnit.MILLIS)
-    private Duration grpcDeadline = Duration.ofSeconds(3);
+    private Duration retryBackoff = Duration.ofSeconds(1);
+
+    @Min(1)
+    private int outboxBatchSize = 100;
 
     @DurationUnit(ChronoUnit.MILLIS)
-    private Duration connectTimeout = Duration.ofSeconds(2);
-
-    @DurationUnit(ChronoUnit.MILLIS)
-    private Duration readTimeout = Duration.ofSeconds(5);
-
-    /**
-     * Transport mode for scrapper to bot calls.
-     */
-    public enum TransportMode {
-        KAFKA,
-        HTTP,
-        GRPC
-    }
+    private Duration outboxPublishInterval = Duration.ofSeconds(5);
 }

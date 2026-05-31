@@ -91,6 +91,30 @@
             <artifactId>grpc-stub</artifactId>
             <version>${grpc.version}</version>
         </dependency>
+        <dependency>
+            <groupId>backend.academy.link-tracker</groupId>
+            <artifactId>messaging</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <version>${avro.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-avro-serializer</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
 
         <!-- Database: -->
         <!-- <dependency> -->
@@ -124,12 +148,6 @@
         <!-- <dependency> -->
         <!--     <groupId>org.springframework.boot</groupId> -->
         <!--     <artifactId>spring-boot-starter-data-redis</artifactId> -->
-        <!-- </dependency> -->
-
-        <!-- Kafka: -->
-        <!-- <dependency>-->
-        <!--     <groupId>org.springframework.boot</groupId> -->
-        <!--     <artifactId>spring-boot-starter-kafka</artifactId> -->
         <!-- </dependency> -->
 
         <!-- Opentelemetry support: -->
