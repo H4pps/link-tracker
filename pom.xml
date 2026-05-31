@@ -28,6 +28,7 @@
         <module>ai-agent</module>
         <module>bot</module>
         <module>build-report-aggregate</module>
+        <module>messaging</module>
         <module>scrapper</module>
     </modules>
 
@@ -46,12 +47,14 @@
         <maven.version>3.9.12</maven.version>
 
         <awaitility.version>4.3.0</awaitility.version>
+        <avro.version>1.11.4</avro.version>
         <commons-codec.version>1.21.0</commons-codec.version>
         <commons-collections.version>4.5.0</commons-collections.version>
         <commons-compress.version>1.28.0</commons-compress.version>
         <commons-io.version>2.21.0</commons-io.version>
         <commons-lang.version>3.20.0</commons-lang.version>
         <commons-text.version>1.15.0</commons-text.version>
+        <confluent.version>8.1.0</confluent.version>
         <datafaker.version>2.5.2</datafaker.version>
         <error-prone-annotations.version>2.41.0</error-prone-annotations.version>
         <grpc.version>1.77.1</grpc.version>
@@ -218,6 +221,13 @@
         </dependency>
     </dependencies>
 
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -315,6 +325,7 @@
                         <outputDirectory>${project.reporting.outputDirectory}/pmd</outputDirectory>
                         <excludeRoots>
                             <excludeRoot>${project.build.directory}/generated-sources/protobuf</excludeRoot>
+                            <excludeRoot>${project.build.directory}/generated-sources/avro</excludeRoot>
                         </excludeRoots>
                         <rulesets>
                             <ruleset>pmd.xml</ruleset>
