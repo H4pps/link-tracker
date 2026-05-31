@@ -7,6 +7,7 @@ import backend.academy.linktracker.scrapper.application.chat.ScrapperChatReposit
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
+import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryLinkUpdateCheckpointRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
@@ -63,6 +64,7 @@ class SqlDefaultAccessTypeIntegrationTest {
         assertSingleRepositoryImplementation(ScrapperLinkRepository.class, "SqlScrapperLinkRepository");
         assertSingleRepositoryImplementation(TagRepository.class, "SqlTagRepository");
         assertSingleRepositoryImplementation(LinkUpdateCheckpointRepository.class, "SqlLinkUpdateCheckpointRepository");
+        assertSingleRepositoryImplementation(LinkUpdateOutboxRepository.class, "SqlLinkUpdateOutboxRepository");
 
         assertThat(applicationContext.getBeansOfType(InMemoryScrapperStorage.class))
                 .isEmpty();

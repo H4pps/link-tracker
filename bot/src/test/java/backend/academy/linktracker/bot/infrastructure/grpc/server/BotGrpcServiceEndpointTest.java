@@ -58,10 +58,17 @@ class BotGrpcServiceEndpointTest {
                 .setUrl("https://github.com/a/b")
                 .setDescription("changed")
                 .addTgChatIds(100)
+                .addTgChatIds(200)
                 .build());
 
+        ArgumentCaptor<LinkUpdateCommand> commandCaptor = ArgumentCaptor.forClass(LinkUpdateCommand.class);
         assertThat(response.getAccepted()).isTrue();
-        verify(botUpdateUseCase).processLinkUpdate(org.mockito.ArgumentMatchers.any());
+        verify(botUpdateUseCase).processLinkUpdate(commandCaptor.capture());
+        LinkUpdateCommand command = commandCaptor.getValue();
+        assertThat(command.id()).isEqualTo(1L);
+        assertThat(command.url()).isEqualTo("https://github.com/a/b");
+        assertThat(command.description()).isEqualTo("changed");
+        assertThat(command.tgChatIds()).containsExactly(100L, 200L);
     }
 
     @Test

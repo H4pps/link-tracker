@@ -1,4 +1,6 @@
 app:
+  kafka:
+    enabled: false
   telegram:
     url: ${wiremock.server.baseUrl}/bot
     token: test-token

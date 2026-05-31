@@ -3,6 +3,7 @@ package backend.academy.linktracker.scrapper.application.update;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -138,8 +139,16 @@ class LinkUpdateSchedulerUseCaseTest {
 
         useCase.checkUpdates();
 
-        verify(notificationSender).send(any());
+        ArgumentCaptor<LinkUpdateNotification> notificationCaptor =
+                ArgumentCaptor.forClass(LinkUpdateNotification.class);
+        verify(notificationSender).send(notificationCaptor.capture());
+        assertThat(notificationCaptor.getValue().id()).isEqualTo(snapshot.id());
+        assertThat(notificationCaptor.getValue().url()).isEqualTo(snapshot.url());
+        assertThat(notificationCaptor.getValue().tgChatIds()).containsExactly(10L, 20L);
         verify(checkpointRepository).save(snapshot.url(), Instant.parse("2024-02-01T00:00:00Z"));
+        var orderedInteractions = inOrder(notificationSender, checkpointRepository);
+        orderedInteractions.verify(notificationSender).send(any());
+        orderedInteractions.verify(checkpointRepository).save(snapshot.url(), Instant.parse("2024-02-01T00:00:00Z"));
     }
 
     @Test
