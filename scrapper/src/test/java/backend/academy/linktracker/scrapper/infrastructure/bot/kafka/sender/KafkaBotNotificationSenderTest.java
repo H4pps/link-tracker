@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot.kafka;
+package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.sender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

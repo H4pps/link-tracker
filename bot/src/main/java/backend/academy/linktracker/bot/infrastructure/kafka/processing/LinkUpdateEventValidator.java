@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.processing;
 
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import org.springframework.stereotype.Component;
@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
  * Validates Avro link update events before bot delivery.
  */
 @Component
-class LinkUpdateEventValidator {
+public class LinkUpdateEventValidator {
 
     void validate(LinkUpdateEvent event) {
         if (event == null) {

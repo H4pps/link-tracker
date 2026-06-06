@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class KafkaBotOutboxContractTest {
 
     private static final String KAFKA_SENDER_CLASS =
-            "backend.academy.linktracker.scrapper.infrastructure.bot.kafka.KafkaBotNotificationSender";
+            "backend.academy.linktracker.scrapper.infrastructure.bot.kafka.sender.KafkaBotNotificationSender";
     private static final String OUTBOX_REPOSITORY_CLASS =
             "backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository";
     private static final String OUTBOX_EVENT_CLASS =

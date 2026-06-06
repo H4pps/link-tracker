@@ -1,5 +1,6 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.consumer;
 
+import backend.academy.linktracker.bot.infrastructure.kafka.handler.KafkaLinkUpdateMessageHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;

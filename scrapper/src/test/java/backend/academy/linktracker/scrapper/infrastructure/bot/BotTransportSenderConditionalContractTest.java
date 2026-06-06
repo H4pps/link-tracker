@@ -35,7 +35,7 @@ class BotTransportSenderConditionalContractTest {
     @Test
     void kafkaSenderExistsAndIsDefaultMatchIfMissingMode() {
         Class<?> kafkaSenderClass = loadRequiredClass(
-                "backend.academy.linktracker.scrapper.infrastructure.bot.kafka.KafkaBotNotificationSender");
+                "backend.academy.linktracker.scrapper.infrastructure.bot.kafka.sender.KafkaBotNotificationSender");
         ConditionalOnProperty condition = conditionalOnProperty(kafkaSenderClass);
 
         assertThat(BotNotificationSender.class.isAssignableFrom(kafkaSenderClass))

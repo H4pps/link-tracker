@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot.kafka;
+package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.outbox;
 
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxEvent;

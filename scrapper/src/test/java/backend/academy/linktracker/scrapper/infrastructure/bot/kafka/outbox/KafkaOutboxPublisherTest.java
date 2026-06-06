@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot.kafka;
+package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.outbox;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;

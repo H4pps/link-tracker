@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.processing;
 
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * Maps Kafka Avro link update events to bot application commands.
  */
 @Component
-class LinkUpdateEventMapper {
+public class LinkUpdateEventMapper {
 
     LinkUpdateCommand toCommand(LinkUpdateEvent event) {
         return new LinkUpdateCommand(

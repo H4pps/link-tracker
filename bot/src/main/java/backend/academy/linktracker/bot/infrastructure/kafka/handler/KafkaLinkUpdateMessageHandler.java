@@ -1,5 +1,7 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.handler;
 
+import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateDeserializationException;
+import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventProcessingService;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -13,13 +15,13 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
-class KafkaLinkUpdateMessageHandler {
+public class KafkaLinkUpdateMessageHandler {
 
     private final KafkaProperties kafkaProperties;
     private final KafkaAvroDeserializer kafkaAvroDeserializer;
     private final LinkUpdateEventProcessingService processingService;
 
-    void handle(byte[] payload, String key, byte[] messageIdHeader) {
+    public void handle(byte[] payload, String key, byte[] messageIdHeader) {
         processingService.process(deserialize(payload), parseMessageId(messageIdHeader));
     }
 

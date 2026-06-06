@@ -1,5 +1,7 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.config;
 
+import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateDeserializationException;
+import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateValidationException;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;

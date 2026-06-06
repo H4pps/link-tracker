@@ -1,4 +1,4 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.handler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,6 +11,11 @@ import static org.mockito.Mockito.when;
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import backend.academy.linktracker.bot.application.update.ProcessedUpdateRepository;
+import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateDeserializationException;
+import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateValidationException;
+import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventMapper;
+import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventProcessingService;
+import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventValidator;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
 import backend.academy.linktracker.messaging.LinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;

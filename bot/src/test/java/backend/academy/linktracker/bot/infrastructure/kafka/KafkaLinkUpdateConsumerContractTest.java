@@ -12,16 +12,16 @@ import org.springframework.kafka.listener.DefaultErrorHandler;
 class KafkaLinkUpdateConsumerContractTest {
 
     private static final String CONSUMER_CLASS =
-            "backend.academy.linktracker.bot.infrastructure.kafka.KafkaLinkUpdateConsumer";
+            "backend.academy.linktracker.bot.infrastructure.kafka.consumer.KafkaLinkUpdateConsumer";
     private static final String MESSAGE_HANDLER_CLASS =
-            "backend.academy.linktracker.bot.infrastructure.kafka.KafkaLinkUpdateMessageHandler";
+            "backend.academy.linktracker.bot.infrastructure.kafka.handler.KafkaLinkUpdateMessageHandler";
     private static final String EVENT_CLASS = "backend.academy.linktracker.messaging.LinkUpdateEvent";
     private static final String EVENT_MAPPER_CLASS =
-            "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventMapper";
+            "backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventMapper";
     private static final String EVENT_VALIDATOR_CLASS =
-            "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventValidator";
+            "backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventValidator";
     private static final String KAFKA_CONFIGURATION_CLASS =
-            "backend.academy.linktracker.bot.infrastructure.kafka.KafkaConsumerConfiguration";
+            "backend.academy.linktracker.bot.infrastructure.kafka.config.KafkaConsumerConfiguration";
 
     @Test
     void kafkaConsumerExistsAndDependsOnMessageHandler() {

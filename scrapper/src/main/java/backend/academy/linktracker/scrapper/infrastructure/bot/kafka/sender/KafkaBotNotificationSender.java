@@ -1,4 +1,4 @@
-package backend.academy.linktracker.scrapper.infrastructure.bot.kafka;
+package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.sender;
 
 import backend.academy.linktracker.scrapper.application.update.BotNotificationSender;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateNotification;

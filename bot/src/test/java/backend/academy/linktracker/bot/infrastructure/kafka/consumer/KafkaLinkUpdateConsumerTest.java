@@ -1,7 +1,8 @@
-package backend.academy.linktracker.bot.infrastructure.kafka;
+package backend.academy.linktracker.bot.infrastructure.kafka.consumer;
 
 import static org.mockito.Mockito.verify;
 
+import backend.academy.linktracker.bot.infrastructure.kafka.handler.KafkaLinkUpdateMessageHandler;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
