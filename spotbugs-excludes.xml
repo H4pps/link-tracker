@@ -73,4 +73,9 @@
     <Match>
         <Package name="backend.academy.linktracker.grpc"/>
     </Match>
+
+    <!-- Avro generated sources -->
+    <Match>
+        <Package name="backend.academy.linktracker.messaging"/>
+    </Match>
 </FindBugsFilter>

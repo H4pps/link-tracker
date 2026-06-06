@@ -52,7 +52,7 @@ abstract class AbstractTagRepositoryIntegrationTest {
     @BeforeEach
     void cleanDatabase() {
         jdbcTemplate.execute(
-                "TRUNCATE TABLE link_update_checkpoints, subscription_filters, subscription_tags, subscriptions, "
+                "TRUNCATE TABLE link_update_outbox, link_update_checkpoints, subscription_filters, subscription_tags, subscriptions, "
                         + "tags, links, chats RESTART IDENTITY CASCADE");
     }
 

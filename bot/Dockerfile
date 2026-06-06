@@ -4,10 +4,14 @@ FROM maven:3.9.12-eclipse-temurin-25 AS build
 WORKDIR /workspace
 
 COPY pom.xml ./
+COPY messaging/pom.xml messaging/pom.xml
+COPY messaging/src messaging/src
 COPY bot/pom.xml bot/pom.xml
 COPY bot/src bot/src
 
-RUN mvn -f bot/pom.xml -DskipTests package
+RUN mvn -N -DskipTests install \
+    && mvn -f messaging/pom.xml -DskipTests install \
+    && mvn -f bot/pom.xml -DskipTests package
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app

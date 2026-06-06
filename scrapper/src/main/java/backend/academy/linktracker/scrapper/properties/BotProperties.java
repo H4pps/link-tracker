@@ -25,7 +25,7 @@ import org.springframework.validation.annotation.Validated;
 @NoArgsConstructor
 public class BotProperties {
 
-    private TransportMode mode = TransportMode.GRPC;
+    private TransportMode mode = TransportMode.KAFKA;
 
     @NotEmpty
     @URL
@@ -51,6 +51,7 @@ public class BotProperties {
      * Transport mode for scrapper to bot calls.
      */
     public enum TransportMode {
+        KAFKA,
         HTTP,
         GRPC
     }

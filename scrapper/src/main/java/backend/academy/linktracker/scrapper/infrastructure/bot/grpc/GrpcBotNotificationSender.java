@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "app.bot", name = "mode", havingValue = "grpc", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "app.bot", name = "mode", havingValue = "grpc", matchIfMissing = false)
 public class GrpcBotNotificationSender implements BotNotificationSender {
 
     private final BotProperties botProperties;

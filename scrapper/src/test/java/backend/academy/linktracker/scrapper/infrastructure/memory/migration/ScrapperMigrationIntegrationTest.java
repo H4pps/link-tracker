@@ -27,7 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "app.stackoverflow.key=test-stackoverflow-key",
             "app.stackoverflow.access-token=test-stackoverflow-access-token"
         })
-class ScrapperMigrationTest {
+class ScrapperMigrationIntegrationTest {
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "chats",
@@ -36,7 +36,8 @@ class ScrapperMigrationTest {
             "tags",
             "subscription_tags",
             "subscription_filters",
-            "link_update_checkpoints");
+            "link_update_checkpoints",
+            "link_update_outbox");
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
@@ -61,8 +62,11 @@ class ScrapperMigrationTest {
         assertThat(indexExists("idx_subscriptions_link_id")).isTrue();
         assertThat(indexExists("idx_subscription_tags_tag_id")).isTrue();
         assertThat(indexExists("idx_link_update_checkpoints_checked_at")).isTrue();
+        assertThat(indexExists("idx_link_update_outbox_polling")).isTrue();
+        assertThat(indexExists("idx_link_update_outbox_sent_at")).isTrue();
         assertThat(columnIsRequired("links", "updated_at")).isTrue();
         assertThat(columnDefault("links", "updated_at")).containsIgnoringCase("now()");
+        assertThat(columnIsRequired("link_update_outbox", "status")).isTrue();
 
         assertThat(constraintExists("uq_chats_chat_id")).isTrue();
         assertThat(constraintExists("uq_links_url")).isTrue();
@@ -71,6 +75,7 @@ class ScrapperMigrationTest {
         assertThat(constraintExists("uq_subscription_filters_subscription_id_value"))
                 .isTrue();
         assertThat(constraintExists("pk_subscription_tags")).isTrue();
+        assertThat(constraintExists("chk_link_update_outbox_status")).isTrue();
 
         assertThat(foreignKeyDeleteAction("fk_subscriptions_chat_id")).isEqualTo("c");
         assertThat(foreignKeyDeleteAction("fk_subscriptions_link_id")).isEqualTo("c");
@@ -82,6 +87,10 @@ class ScrapperMigrationTest {
         assertThat(foreignKeyDeleteAction("fk_link_update_checkpoints_link_id")).isEqualTo("c");
 
         assertThat(appliedChangeSetCount("001-create-scrapper-storage")).isEqualTo(1);
+        assertThat(appliedChangeSetCount("002-create-link-update-outbox")).isEqualTo(1);
+        assertThat(appliedChangeSetCount("003-add-outbox-message-id")).isEqualTo(1);
+        assertThat(columnIsRequired("link_update_outbox", "message_id")).isTrue();
+        assertThat(indexExists("idx_link_update_outbox_message_id")).isTrue();
     }
 
     private List<String> existingTables() {
@@ -97,7 +106,8 @@ class ScrapperMigrationTest {
                     'tags',
                     'subscription_tags',
                     'subscription_filters',
-                    'link_update_checkpoints'
+                    'link_update_checkpoints',
+                    'link_update_outbox'
                   )
                 """, String.class);
     }

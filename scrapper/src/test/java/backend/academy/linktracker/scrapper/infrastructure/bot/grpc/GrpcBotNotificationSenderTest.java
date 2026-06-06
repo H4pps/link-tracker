@@ -15,6 +15,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,18 +36,28 @@ class GrpcBotNotificationSenderTest {
 
     @Test
     void returnsTrueWhenBotAcceptsNotification() throws IOException {
+        AtomicReference<LinkUpdateRequest> capturedRequest = new AtomicReference<>();
         server = startServer(new BotServiceGrpc.BotServiceImplBase() {
             @Override
             public void sendUpdate(LinkUpdateRequest request, StreamObserver<Ack> responseObserver) {
+                capturedRequest.set(request);
                 responseObserver.onNext(Ack.newBuilder().setAccepted(true).build());
                 responseObserver.onCompleted();
             }
         });
         sender = createSender(server.getPort());
 
-        boolean sent = sender.send(new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L)));
+        LinkUpdateNotification notification =
+                new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L, 20L));
+
+        boolean sent = sender.send(notification);
 
         assertThat(sent).isTrue();
+        assertThat(capturedRequest.get()).isNotNull();
+        assertThat(capturedRequest.get().getId()).isEqualTo(notification.id());
+        assertThat(capturedRequest.get().getUrl()).isEqualTo(notification.url());
+        assertThat(capturedRequest.get().getDescription()).isEqualTo(notification.description());
+        assertThat(capturedRequest.get().getTgChatIdsList()).containsExactlyElementsOf(notification.tgChatIds());
     }
 
     @Test

@@ -6,6 +6,27 @@ spring:
     name: bot
   config:
     import: optional:file:.env[.properties],optional:file:bot/.env[.properties]
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/link_tracker}
+    username: ${SPRING_DATASOURCE_USERNAME:link_tracker}
+    password: ${SPRING_DATASOURCE_PASSWORD:link_tracker}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
+  sql:
+    init:
+      mode: always
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${APP_KAFKA_CONSUMER_GROUP:link-tracker-bot}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+    listener:
+      ack-mode: record
 
 logging:
   pattern:
@@ -29,3 +50,12 @@ app:
     grpc-deadline: ${APP_SCRAPPER_GRPC_DEADLINE:3s}
     connect-timeout: ${APP_SCRAPPER_CONNECT_TIMEOUT:2s}
     read-timeout: ${APP_SCRAPPER_READ_TIMEOUT:5s}
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    schema-registry-url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+    link-updates-topic: ${APP_KAFKA_LINK_UPDATES_TOPIC:link-updates}
+    link-updates-dlq-topic: ${APP_KAFKA_LINK_UPDATES_DLQ_TOPIC:link-updates-dlq}
+    consumer-group: ${APP_KAFKA_CONSUMER_GROUP:link-tracker-bot}
+    max-attempts: ${APP_KAFKA_MAX_ATTEMPTS:3}
+    retry-backoff: ${APP_KAFKA_RETRY_BACKOFF:1s}

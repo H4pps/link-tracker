@@ -34,12 +34,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * Container end-to-end checks for HTTP fallback and default gRPC transport.
@@ -163,6 +168,58 @@ class TransportIntegrationE2EIT {
     }
 
     /**
+     * Verifies the full mandatory path Scrapper -> Transactional Outbox -> Kafka -> Bot -> Telegram, with the bot
+     * consuming Avro notifications from Kafka and delivering them to the end user.
+     *
+     * @throws Exception when network or parsing operation fails
+     */
+    @Test
+    void kafkaTransportFlowDeliversNotificationFromScrapperToTelegram() throws Exception {
+        try (FakeIntegrationServer fakeServer = new FakeIntegrationServer();
+                RunningSystem system = startSystem(TransportMode.KAFKA, fakeServer, true, true)) {
+            fakeServer.setGithubUpdatedAt(Instant.parse("2026-02-01T00:00:00Z"));
+
+            fakeServer.enqueueTelegramMessage(CHAT_ID, "/start");
+            fakeServer.enqueueTelegramMessage(CHAT_ID, "/track");
+            fakeServer.enqueueTelegramMessage(CHAT_ID, TRACKED_URL);
+            fakeServer.enqueueTelegramMessage(CHAT_ID, "work");
+            fakeServer.enqueueTelegramMessage(CHAT_ID, "");
+
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(30))
+                    .pollInterval(Duration.ofMillis(500))
+                    .untilAsserted(() -> {
+                        HttpResponse<String> listLinksResponse = sendJsonRequest(
+                                "GET",
+                                system.scrapperBaseUrl() + "/links",
+                                null,
+                                Map.of("Tg-Chat-Id", String.valueOf(CHAT_ID)));
+                        assertThat(listLinksResponse.statusCode()).isEqualTo(200);
+                        JsonNode linksJson = OBJECT_MAPPER.readTree(listLinksResponse.body());
+                        List<String> trackedUrls = new ArrayList<>();
+                        linksJson
+                                .path("links")
+                                .forEach(linkNode ->
+                                        trackedUrls.add(linkNode.path("url").asText()));
+                        assertThat(trackedUrls).contains(TRACKED_URL);
+                    });
+
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(30))
+                    .pollInterval(Duration.ofMillis(500))
+                    .untilAsserted(
+                            () -> assertThat(fakeServer.githubRequestCount()).isGreaterThan(0));
+
+            fakeServer.setGithubUpdatedAt(Instant.parse("2026-02-01T00:01:00Z"));
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(40))
+                    .pollInterval(Duration.ofMillis(500))
+                    .untilAsserted(() -> assertThat(fakeServer.sentMessages())
+                            .anyMatch(text -> text.contains("Обновление по ссылке: " + TRACKED_URL)));
+        }
+    }
+
+    /**
      * Starts bot and scrapper containers with selected transport mode.
      *
      * @param mode selected inter-service transport mode
@@ -176,11 +233,25 @@ class TransportIntegrationE2EIT {
         ensureDockerImagesBuilt();
         Testcontainers.exposeHostPorts(fakeServer.port());
         Network network = Network.newNetwork();
+        KafkaContainer kafkaContainer = null;
+        GenericContainer<?> schemaRegistryContainer = null;
+        PostgreSQLContainer<?> postgresContainer = null;
         try {
+            postgresContainer = new PostgreSQLContainer<>(DockerImageName.parse("postgres:18-alpine"))
+                    .withNetwork(network)
+                    .withNetworkAliases("postgres")
+                    .withDatabaseName("link_tracker")
+                    .withUsername("link_tracker")
+                    .withPassword("link_tracker");
+            postgresContainer.start();
+
             GenericContainer<?> scrapperContainer = new GenericContainer<>(SCRAPPER_IMAGE)
                     .withNetwork(network)
                     .withNetworkAliases("scrapper")
                     .withExposedPorts(8081, 9091)
+                    .withEnv("SPRING_DATASOURCE_URL", "jdbc:postgresql://postgres:5432/link_tracker")
+                    .withEnv("SPRING_DATASOURCE_USERNAME", "link_tracker")
+                    .withEnv("SPRING_DATASOURCE_PASSWORD", "link_tracker")
                     .withEnv("GITHUB_TOKEN", "integration-token")
                     .withEnv("STACKOVERFLOW_KEY", "integration-key")
                     .withEnv("STACKOVERFLOW_ACCESS_KEY", "integration-access-token")
@@ -204,11 +275,14 @@ class TransportIntegrationE2EIT {
                     .withNetworkAliases("bot")
                     .withExposedPorts(8080, 9090)
                     .withEnv("TELEGRAM_TOKEN", TELEGRAM_TOKEN)
+                    .withEnv("SPRING_DATASOURCE_URL", "jdbc:postgresql://postgres:5432/link_tracker")
+                    .withEnv("SPRING_DATASOURCE_USERNAME", "link_tracker")
+                    .withEnv("SPRING_DATASOURCE_PASSWORD", "link_tracker")
                     .withEnv("APP_TELEGRAM_URL", "http://host.testcontainers.internal:" + fakeServer.port() + "/bot")
                     .withEnv("APP_TELEGRAM_POLLING_ENABLED", String.valueOf(pollingEnabled))
                     .withEnv("APP_TELEGRAM_UPDATE_LISTENER_SLEEP", "100ms")
                     .withEnv("APP_BOT_GRPC_SERVER_PORT", "9090")
-                    .withEnv("APP_SCRAPPER_MODE", mode.value())
+                    .withEnv("APP_SCRAPPER_MODE", botScrapperMode(mode))
                     .withEnv("APP_SCRAPPER_BASE_URL", "http://scrapper:8081")
                     .withEnv("APP_SCRAPPER_GRPC_HOST", "scrapper")
                     .withEnv("APP_SCRAPPER_GRPC_PORT", "9091")
@@ -218,12 +292,86 @@ class TransportIntegrationE2EIT {
                             .forStatusCode(200)
                             .withStartupTimeout(Duration.ofMinutes(4)));
 
+            if (mode == TransportMode.KAFKA) {
+                kafkaContainer = new KafkaContainer(DockerImageName.parse("apache/kafka-native:4.1.1"))
+                        .withNetwork(network)
+                        .withListener("kafka:19092");
+                schemaRegistryContainer = new GenericContainer<>(
+                                DockerImageName.parse("confluentinc/cp-schema-registry:8.1.0"))
+                        .withNetwork(network)
+                        .withNetworkAliases("schema-registry")
+                        .withExposedPorts(8081)
+                        .withEnv("SCHEMA_REGISTRY_HOST_NAME", "schema-registry")
+                        .withEnv("SCHEMA_REGISTRY_LISTENERS", "http://0.0.0.0:8081")
+                        .withEnv("SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS", "PLAINTEXT://kafka:19092")
+                        .waitingFor(Wait.forHttp("/subjects").forStatusCode(200));
+                kafkaContainer.start();
+                schemaRegistryContainer.start();
+                createKafkaTopics(kafkaContainer.getBootstrapServers());
+
+                scrapperContainer
+                        .withEnv("APP_KAFKA_BOOTSTRAP_SERVERS", "kafka:19092")
+                        .withEnv("APP_KAFKA_SCHEMA_REGISTRY_URL", "http://schema-registry:8081")
+                        .withEnv("APP_KAFKA_OUTBOX_PUBLISH_INTERVAL", "1s");
+                botContainer
+                        .withEnv("APP_KAFKA_ENABLED", "true")
+                        .withEnv("APP_KAFKA_BOOTSTRAP_SERVERS", "kafka:19092")
+                        .withEnv("APP_KAFKA_SCHEMA_REGISTRY_URL", "http://schema-registry:8081");
+            } else {
+                botContainer.withEnv("APP_KAFKA_ENABLED", "false");
+            }
+
             scrapperContainer.start();
             botContainer.start();
-            return new RunningSystem(network, botContainer, scrapperContainer);
+            return new RunningSystem(
+                    network,
+                    botContainer,
+                    scrapperContainer,
+                    postgresContainer,
+                    kafkaContainer,
+                    schemaRegistryContainer);
         } catch (RuntimeException exception) {
+            if (schemaRegistryContainer != null) {
+                schemaRegistryContainer.stop();
+            }
+            if (kafkaContainer != null) {
+                kafkaContainer.stop();
+            }
+            if (postgresContainer != null) {
+                postgresContainer.stop();
+            }
             network.close();
             throw exception;
+        }
+    }
+
+    /**
+     * Returns the Bot-to-Scrapper transport mode, which always stays synchronous because Kafka only carries
+     * Scrapper-to-Bot notifications.
+     *
+     * @param mode selected notification transport mode
+     * @return Bot-to-Scrapper transport mode value
+     */
+    private String botScrapperMode(TransportMode mode) {
+        return mode == TransportMode.KAFKA ? TransportMode.GRPC.value() : mode.value();
+    }
+
+    /**
+     * Creates the notification and dead-letter topics on the test Kafka cluster.
+     *
+     * @param bootstrapServers host-mapped Kafka bootstrap servers
+     */
+    private void createKafkaTopics(String bootstrapServers) {
+        try (Admin admin = Admin.create(Map.of("bootstrap.servers", bootstrapServers))) {
+            admin.createTopics(List.of(
+                            new NewTopic("link-updates", 1, (short) 1), new NewTopic("link-updates-dlq", 1, (short) 1)))
+                    .all()
+                    .get();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while creating Kafka topics", exception);
+        } catch (java.util.concurrent.ExecutionException exception) {
+            throw new IllegalStateException("Failed to create Kafka topics", exception);
         }
     }
 
@@ -368,7 +516,8 @@ class TransportIntegrationE2EIT {
      */
     private enum TransportMode {
         HTTP("http"),
-        GRPC("grpc");
+        GRPC("grpc"),
+        KAFKA("kafka");
 
         private final String value;
 
@@ -394,7 +543,12 @@ class TransportIntegrationE2EIT {
      * @param scrapperContainer started scrapper container
      */
     private record RunningSystem(
-            Network network, GenericContainer<?> botContainer, GenericContainer<?> scrapperContainer)
+            Network network,
+            GenericContainer<?> botContainer,
+            GenericContainer<?> scrapperContainer,
+            GenericContainer<?> postgresContainer,
+            GenericContainer<?> kafkaContainer,
+            GenericContainer<?> schemaRegistryContainer)
             implements AutoCloseable {
 
         /**
@@ -422,6 +576,15 @@ class TransportIntegrationE2EIT {
         public void close() {
             botContainer.stop();
             scrapperContainer.stop();
+            if (schemaRegistryContainer != null) {
+                schemaRegistryContainer.stop();
+            }
+            if (kafkaContainer != null) {
+                kafkaContainer.stop();
+            }
+            if (postgresContainer != null) {
+                postgresContainer.stop();
+            }
             network.close();
         }
     }
@@ -519,10 +682,13 @@ class TransportIntegrationE2EIT {
                 respondJson(exchange, "{\"ok\":true,\"result\":true}");
                 return;
             }
-            if ("/repos/acme/repo".equals(path)) {
+            if (path.startsWith("/repos/acme/repo/issues")) {
                 githubRequestCount.incrementAndGet();
                 respondJson(
-                        exchange, "{\"updated_at\":\"" + githubUpdatedAt.get().toString() + "\"}");
+                        exchange,
+                        "[{\"title\":\"E2E issue\",\"created_at\":\""
+                                + githubUpdatedAt.get().toString()
+                                + "\",\"body\":\"E2E issue body\",\"user\":{\"login\":\"e2e-bot\"}}]");
                 return;
             }
             respondJson(exchange, "{\"ok\":true,\"result\":[]}");

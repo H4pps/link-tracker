@@ -8,6 +8,8 @@ import backend.academy.linktracker.scrapper.application.link.ScrapperLinkReposit
 import backend.academy.linktracker.scrapper.application.pagination.RepositoryPageRequest;
 import backend.academy.linktracker.scrapper.application.tag.TagRepository;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateCheckpointRepository;
+import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxEvent;
+import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository;
 import backend.academy.linktracker.scrapper.domain.model.TrackedLinkSnapshot;
 import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryLinkUpdateCheckpointRepository;
@@ -16,6 +18,7 @@ import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMem
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryTagRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlLinkUpdateCheckpointRepository;
+import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlLinkUpdateOutboxRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.sql.SqlTagRepository;
@@ -80,10 +83,13 @@ class OrmScrapperRepositoriesIntegrationTest {
     @Autowired
     private LinkUpdateCheckpointRepository checkpointRepository;
 
+    @Autowired
+    private LinkUpdateOutboxRepository outboxRepository;
+
     @BeforeEach
     void cleanDatabase() {
         jdbcTemplate.execute(
-                "TRUNCATE TABLE link_update_checkpoints, subscription_filters, subscription_tags, subscriptions, "
+                "TRUNCATE TABLE link_update_outbox, link_update_checkpoints, subscription_filters, subscription_tags, subscriptions, "
                         + "tags, links, chats RESTART IDENTITY CASCADE");
     }
 
@@ -280,17 +286,51 @@ class OrmScrapperRepositoriesIntegrationTest {
     }
 
     @Test
+    void outboxSavePollMarkFailedAndMarkSentWork() {
+        Instant retryAt = Instant.parse("2026-03-01T00:00:00Z");
+        outboxRepository.save(
+                LinkUpdateOutboxEvent.pending(11L, "https://example.com/outbox", "payload", List.of(10L, 20L)));
+
+        List<LinkUpdateOutboxEvent> initialPending =
+                outboxRepository.findPending(Instant.now().plusSeconds(5), 10);
+        assertThat(initialPending).hasSize(1);
+        LinkUpdateOutboxEvent pendingEvent = initialPending.getFirst();
+        assertThat(pendingEvent.status()).isEqualTo(LinkUpdateOutboxEvent.Status.PENDING);
+        assertThat(pendingEvent.attempts()).isZero();
+        assertThat(pendingEvent.tgChatIds()).containsExactly(10L, 20L);
+
+        outboxRepository.markFailed(pendingEvent.outboxId(), "boom", retryAt);
+        assertThat(outboxRepository.findPending(retryAt.minusSeconds(1), 10)).isEmpty();
+
+        List<LinkUpdateOutboxEvent> retryPending = outboxRepository.findPending(retryAt.plusSeconds(1), 10);
+        assertThat(retryPending).singleElement().satisfies(retryEvent -> {
+            assertThat(retryEvent.attempts()).isEqualTo(1);
+            assertThat(retryEvent.lastError()).isEqualTo("boom");
+        });
+
+        outboxRepository.markSent(pendingEvent.outboxId());
+        assertThat(outboxRepository.findPending(Instant.now().plusSeconds(5), 10))
+                .isEmpty();
+        assertThat(jdbcTemplate.queryForObject(
+                        "SELECT status FROM link_update_outbox WHERE id = ?", String.class, pendingEvent.outboxId()))
+                .isEqualTo("SENT");
+    }
+
+    @Test
     void ormModeLoadsOnlyOrmRepositories() {
         assertSingleRepositoryImplementation(ScrapperChatRepository.class, "OrmScrapperChatRepository");
         assertSingleRepositoryImplementation(ScrapperLinkRepository.class, "OrmScrapperLinkRepository");
         assertSingleRepositoryImplementation(TagRepository.class, "OrmTagRepository");
         assertSingleRepositoryImplementation(LinkUpdateCheckpointRepository.class, "OrmLinkUpdateCheckpointRepository");
+        assertSingleRepositoryImplementation(LinkUpdateOutboxRepository.class, "OrmLinkUpdateOutboxRepository");
 
         assertThat(applicationContext.getBeansOfType(SqlScrapperChatRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(SqlScrapperLinkRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(SqlLinkUpdateCheckpointRepository.class))
+                .isEmpty();
+        assertThat(applicationContext.getBeansOfType(SqlLinkUpdateOutboxRepository.class))
                 .isEmpty();
         assertThat(applicationContext.getBeansOfType(SqlTagRepository.class)).isEmpty();
 
