@@ -29,6 +29,7 @@ public class KafkaOutboxPublisher {
     private final KafkaTemplate<String, LinkUpdateEvent> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
     private final ScrapperLogger scrapperLogger;
+    private final LinkUpdateOutboxEventMapper mapper;
 
     @Scheduled(fixedDelayString = "${app.kafka.outbox-publish-interval:5s}")
     public void publishDueEvents() {
@@ -45,7 +46,7 @@ public class KafkaOutboxPublisher {
         }
         try {
             ProducerRecord<String, LinkUpdateEvent> record = new ProducerRecord<>(
-                    kafkaProperties.getLinkUpdatesTopic(), outboxEvent.url(), toAvroEvent(outboxEvent));
+                    kafkaProperties.getLinkUpdatesTopic(), outboxEvent.url(), mapper.toEvent(outboxEvent));
             record.headers()
                     .add(new RecordHeader(
                             "message-id", outboxEvent.messageId().toString().getBytes(StandardCharsets.UTF_8)));
@@ -59,11 +60,6 @@ public class KafkaOutboxPublisher {
         } catch (RuntimeException exception) {
             markFailed(outboxEvent, exception);
         }
-    }
-
-    private LinkUpdateEvent toAvroEvent(LinkUpdateOutboxEvent outboxEvent) {
-        return new LinkUpdateEvent(
-                outboxEvent.id(), outboxEvent.url(), outboxEvent.description(), outboxEvent.tgChatIds());
     }
 
     private void markFailed(LinkUpdateOutboxEvent outboxEvent, Throwable throwable) {

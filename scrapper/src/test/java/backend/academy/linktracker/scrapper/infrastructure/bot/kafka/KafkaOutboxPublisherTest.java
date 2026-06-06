@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaOutboxPublisherTest {
@@ -39,6 +40,7 @@ class KafkaOutboxPublisherTest {
 
     private KafkaProperties kafkaProperties;
     private KafkaOutboxPublisher publisher;
+    private LinkUpdateOutboxEventMapper mapper;
 
     @BeforeEach
     void setUp() {
@@ -46,7 +48,8 @@ class KafkaOutboxPublisherTest {
         kafkaProperties.setLinkUpdatesTopic("link-updates");
         kafkaProperties.setOutboxBatchSize(10);
         kafkaProperties.setRetryBackoff(Duration.ofSeconds(1));
-        publisher = new KafkaOutboxPublisher(outboxRepository, kafkaTemplate, kafkaProperties, scrapperLogger);
+        mapper = new LinkUpdateOutboxEventMapper();
+        publisher = new KafkaOutboxPublisher(outboxRepository, kafkaTemplate, kafkaProperties, scrapperLogger, mapper);
     }
 
     @Test
@@ -66,7 +69,7 @@ class KafkaOutboxPublisherTest {
                 Instant.now(),
                 null);
         when(outboxRepository.findPending(any(), eq(10))).thenReturn(List.of(pending));
-        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn(CompletableFuture.completedFuture(null));
+        when(kafkaTemplate.send(anyRecord())).thenReturn(CompletableFuture.completedFuture(null));
 
         publisher.publishDueEvents();
 
@@ -90,15 +93,19 @@ class KafkaOutboxPublisherTest {
                 Instant.now(),
                 Instant.now(),
                 null);
-        CompletableFuture<?> failedFuture = new CompletableFuture<>();
+        CompletableFuture<SendResult<String, LinkUpdateEvent>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new IllegalStateException("kafka unavailable"));
 
         when(outboxRepository.findPending(any(), eq(10))).thenReturn(List.of(pending));
-        when(kafkaTemplate.send(any(ProducerRecord.class))).thenReturn((CompletableFuture) failedFuture);
+        when(kafkaTemplate.send(anyRecord())).thenReturn(failedFuture);
 
         publisher.publishDueEvents();
 
         verify(outboxRepository).markFailed(eq(10L), eq("IllegalStateException: kafka unavailable"), any());
         verify(outboxRepository, never()).markSent(anyLong());
+    }
+
+    private ProducerRecord<String, LinkUpdateEvent> anyRecord() {
+        return any();
     }
 }

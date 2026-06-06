@@ -13,6 +13,8 @@ import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +28,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.BeforeAll;
@@ -95,6 +98,9 @@ class KafkaOutboxIntegrationTest {
     private ScrapperLogger scrapperLogger;
 
     @Autowired
+    private LinkUpdateOutboxEventMapper outboxEventMapper;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @BeforeAll
@@ -137,10 +143,9 @@ class KafkaOutboxIntegrationTest {
             assertThat(String.valueOf(event.getDescription())).isEqualTo("changed: new issue opened");
             assertThat(event.getTgChatIds()).containsExactly(101L, 202L);
 
-            org.apache.kafka.common.header.Header messageIdHeader =
-                    record.headers().lastHeader("message-id");
+            Header messageIdHeader = record.headers().lastHeader("message-id");
             assertThat(messageIdHeader).as("message-id header must be present").isNotNull();
-            assertThat(new String(messageIdHeader.value(), java.nio.charset.StandardCharsets.UTF_8))
+            assertThat(new String(messageIdHeader.value(), StandardCharsets.UTF_8))
                     .isNotBlank();
 
             assertThat(statusOf(outboxId)).isEqualTo("SENT");
@@ -154,8 +159,8 @@ class KafkaOutboxIntegrationTest {
                 LinkUpdateOutboxEvent.pending(88L, "https://github.com/acme/unreachable", "changed", List.of(303L)));
         long outboxId = latestOutboxId();
 
-        KafkaOutboxPublisher failingPublisher =
-                new KafkaOutboxPublisher(outboxRepository, deadBrokerTemplate(), kafkaProperties, scrapperLogger);
+        KafkaOutboxPublisher failingPublisher = new KafkaOutboxPublisher(
+                outboxRepository, deadBrokerTemplate(), kafkaProperties, scrapperLogger, outboxEventMapper);
         failingPublisher.publishDueEvents();
 
         assertThat(statusOf(outboxId)).isEqualTo("PENDING");
@@ -225,6 +230,6 @@ class KafkaOutboxIntegrationTest {
 
     private Object sentAtOf(long outboxId) {
         return jdbcTemplate.queryForObject(
-                "SELECT sent_at FROM link_update_outbox WHERE id = ?", java.sql.Timestamp.class, outboxId);
+                "SELECT sent_at FROM link_update_outbox WHERE id = ?", Timestamp.class, outboxId);
     }
 }
