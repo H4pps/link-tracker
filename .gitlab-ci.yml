@@ -32,7 +32,7 @@ build:
     policy: pull-push
   script:
     - apk add --no-cache gcompat
-    - ./mvnw --batch-mode --no-transfer-progress package -DskipTests=true -Djacoco.skip=true
+    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper -am package -Dmaven.test.skip=true -Djacoco.skip=true -Dspring-boot.repackage.skip=true
 
 lint:
   stage: lint
