@@ -115,7 +115,7 @@ Lint/check:
 ./mvnw clean compile -am spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
 ```
 
-Тесты `bot` и `scrapper`:
+Быстрые тесты `bot` и `scrapper` без Testcontainers-интеграций:
 
 ```bash
 ./mvnw -pl bot,scrapper -am test
@@ -127,21 +127,21 @@ Lint/check:
 end-to-end тест на Testcontainers. Ассистент может запустить его локально (требуется Docker):
 
 ```bash
-./mvnw -pl bot -am -Dsurefire.skip=true \
+./mvnw -pl bot -am -Dsurefire.skip=true -DskipITs=false \
   -Dit.test='TransportIntegrationE2EIT#kafkaTransportFlowDeliversNotificationFromScrapperToTelegram' verify
 ```
 
 Тест поднимает Kafka, Schema Registry, контейнеры `scrapper` и `bot`, эмулирует Telegram/GitHub,
 отслеживает ссылку через бота и проверяет, что обновление доходит до пользователя по Kafka-транспорту.
 
-Дополнительные интеграционные тесты на Testcontainers Kafka (запускаются обычным `test`):
+Дополнительные интеграционные тесты на Testcontainers Kafka запускаются через Failsafe:
 
 ```bash
 # Scrapper: outbox -> Avro-событие в Kafka, статус строки меняется только после ack
-./mvnw -pl scrapper -am -Dtest=KafkaOutboxIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false test
+./mvnw -pl scrapper -am -Dsurefire.skip=true -DskipITs=false -Dit.test=KafkaOutboxIntegrationTest verify
 
 # Bot: валидное сообщение, валидация -> DLQ, ошибка десериализации -> DLQ, повторы -> DLQ
-./mvnw -pl bot -am -Dtest=KafkaConsumerIntegrationTest -Dsurefire.failIfNoSpecifiedTests=false test
+./mvnw -pl bot -am -Dsurefire.skip=true -DskipITs=false -Dit.test=KafkaConsumerIntegrationTest verify
 ```
 
 ## Настройки топиков Kafka

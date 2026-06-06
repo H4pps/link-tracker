@@ -27,7 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "app.stackoverflow.key=test-stackoverflow-key",
             "app.stackoverflow.access-token=test-stackoverflow-access-token"
         })
-class ScrapperMigrationTest {
+class ScrapperMigrationIntegrationTest {
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "chats",
