@@ -6,6 +6,8 @@ import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 
 class KafkaLinkUpdateConsumerContractTest {
 
@@ -18,6 +20,8 @@ class KafkaLinkUpdateConsumerContractTest {
             "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventMapper";
     private static final String EVENT_VALIDATOR_CLASS =
             "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventValidator";
+    private static final String KAFKA_CONFIGURATION_CLASS =
+            "backend.academy.linktracker.bot.infrastructure.kafka.KafkaConsumerConfiguration";
 
     @Test
     void kafkaConsumerExistsAndDependsOnMessageHandler() {
@@ -61,6 +65,20 @@ class KafkaLinkUpdateConsumerContractTest {
                                 && method.getParameterCount() == 1
                                 && method.getParameterTypes()[0].equals(eventClass)))
                 .as("Validator must validate positive id, nonblank url, and nonempty positive tgChatIds")
+                .isTrue();
+    }
+
+    @Test
+    void kafkaConfigurationDefinesNativeRetryAndRecovererContract() {
+        Class<?> configurationClass = loadRequiredClass(KAFKA_CONFIGURATION_CLASS);
+
+        assertThat(Arrays.stream(configurationClass.getDeclaredMethods())
+                        .anyMatch(method -> method.getReturnType().equals(DefaultErrorHandler.class)))
+                .as("Kafka consumer retry must be configured through Spring Kafka DefaultErrorHandler")
+                .isTrue();
+        assertThat(Arrays.stream(configurationClass.getDeclaredMethods())
+                        .anyMatch(method -> method.getReturnType().equals(DeadLetterPublishingRecoverer.class)))
+                .as("Kafka consumer DLQ publication must use Spring Kafka DeadLetterPublishingRecoverer")
                 .isTrue();
     }
 

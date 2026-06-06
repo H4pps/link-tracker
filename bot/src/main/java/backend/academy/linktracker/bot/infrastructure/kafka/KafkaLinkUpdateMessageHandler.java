@@ -18,18 +18,9 @@ class KafkaLinkUpdateMessageHandler {
     private final KafkaProperties kafkaProperties;
     private final KafkaAvroDeserializer kafkaAvroDeserializer;
     private final LinkUpdateEventProcessingService processingService;
-    private final KafkaLinkUpdateDlqPublisher dlqPublisher;
 
     void handle(byte[] payload, String key, byte[] messageIdHeader) {
-        LinkUpdateEvent event;
-        try {
-            event = deserialize(payload);
-        } catch (RuntimeException exception) {
-            dlqPublisher.publishDeserializationFailure(key, payload, exception);
-            return;
-        }
-
-        processingService.process(key, event, parseMessageId(messageIdHeader));
+        processingService.process(deserialize(payload), parseMessageId(messageIdHeader));
     }
 
     private UUID parseMessageId(byte[] messageIdHeader) {
@@ -44,10 +35,16 @@ class KafkaLinkUpdateMessageHandler {
     }
 
     private LinkUpdateEvent deserialize(byte[] payload) {
-        Object decoded = kafkaAvroDeserializer.deserialize(kafkaProperties.getLinkUpdatesTopic(), payload);
-        if (decoded instanceof LinkUpdateEvent linkUpdateEvent) {
-            return linkUpdateEvent;
+        try {
+            Object decoded = kafkaAvroDeserializer.deserialize(kafkaProperties.getLinkUpdatesTopic(), payload);
+            if (decoded instanceof LinkUpdateEvent linkUpdateEvent) {
+                return linkUpdateEvent;
+            }
+            throw new KafkaLinkUpdateDeserializationException("Unsupported event payload type: " + decoded);
+        } catch (KafkaLinkUpdateDeserializationException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new KafkaLinkUpdateDeserializationException("Failed to deserialize link update event", exception);
         }
-        throw new IllegalArgumentException("Unsupported event payload type: " + decoded);
     }
 }

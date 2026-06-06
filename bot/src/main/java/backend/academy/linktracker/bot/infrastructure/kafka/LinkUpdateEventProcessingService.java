@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Processes decoded link update events with validation, idempotency, retry, and DLQ handling.
+ * Processes decoded link update events with validation and idempotency.
  */
 @Component
 @RequiredArgsConstructor
@@ -18,32 +18,20 @@ class LinkUpdateEventProcessingService {
     private final ProcessedUpdateRepository processedUpdateRepository;
     private final LinkUpdateEventValidator validator;
     private final LinkUpdateEventMapper mapper;
-    private final KafkaLinkUpdateRetryService retryService;
-    private final KafkaLinkUpdateDlqPublisher dlqPublisher;
 
-    void process(String key, LinkUpdateEvent event, UUID messageId) {
+    void process(LinkUpdateEvent event, UUID messageId) {
         try {
             validator.validate(event);
         } catch (IllegalArgumentException exception) {
-            dlqPublisher.publishValidationFailure(key, event, exception);
-            return;
+            throw new KafkaLinkUpdateValidationException(exception.getMessage(), exception);
         }
 
         if (messageId != null && processedUpdateRepository.isProcessed(messageId)) {
             return;
         }
 
-        boolean delivered;
-        try {
-            delivered = retryService.execute(
-                    () -> botUpdateUseCase.processLinkUpdate(mapper.toCommand(event)),
-                    (exception, attempt) -> dlqPublisher.publishProcessingFailure(key, event, exception, attempt));
-        } catch (IllegalArgumentException exception) {
-            dlqPublisher.publishValidationFailure(key, event, exception);
-            return;
-        }
-
-        if (delivered && messageId != null) {
+        botUpdateUseCase.processLinkUpdate(mapper.toCommand(event));
+        if (messageId != null) {
             processedUpdateRepository.markProcessed(messageId);
         }
     }
