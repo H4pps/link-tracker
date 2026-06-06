@@ -16,16 +16,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 /**
  * Scheduler orchestration use case that detects link updates and notifies bot.
  */
 @Component
-@RequiredArgsConstructor
 public class LinkUpdateSchedulerUseCase {
 
     private final ScrapperLinkRepository linkRepository;
@@ -35,43 +33,56 @@ public class LinkUpdateSchedulerUseCase {
     private final BotNotificationSender botNotificationSender;
     private final ScrapperLogger scrapperLogger;
     private final SchedulerProperties schedulerProperties;
+
+    @Qualifier("schedulerWorkerExecutor")
+    private final ExecutorService schedulerWorkerExecutor;
+
     private final ExternalUpdateDescriptionFormatter updateDescriptionFormatter =
             new ExternalUpdateDescriptionFormatter();
+
+    public LinkUpdateSchedulerUseCase(
+            ScrapperLinkRepository linkRepository,
+            LinkSourceResolver linkSourceResolver,
+            List<ExternalSourceReader> readers,
+            LinkUpdateCheckpointRepository checkpointRepository,
+            BotNotificationSender botNotificationSender,
+            ScrapperLogger scrapperLogger,
+            SchedulerProperties schedulerProperties,
+            @Qualifier("schedulerWorkerExecutor") ExecutorService schedulerWorkerExecutor) {
+        this.linkRepository = linkRepository;
+        this.linkSourceResolver = linkSourceResolver;
+        this.readers = readers;
+        this.checkpointRepository = checkpointRepository;
+        this.botNotificationSender = botNotificationSender;
+        this.scrapperLogger = scrapperLogger;
+        this.schedulerProperties = schedulerProperties;
+        this.schedulerWorkerExecutor = schedulerWorkerExecutor;
+    }
 
     /**
      * Executes a full update-check batch.
      */
     public void checkUpdates() {
         int pageSize = schedulerProperties.getLinkPageSize();
-        ExecutorService workerPool = Executors.newFixedThreadPool(schedulerProperties.getWorkerCount());
-        long offset = 0;
-        try {
-            while (true) {
-                List<TrackedLinkSnapshot> page =
-                        linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
-                if (page.isEmpty()) {
-                    return;
-                }
+        for (long offset = 0; ; ) {
+            List<TrackedLinkSnapshot> page =
+                    linkRepository.findAllTrackedLinks(new RepositoryPageRequest(pageSize, offset));
+            if (page.isEmpty()) {
+                return;
+            }
 
-                processPage(page, workerPool);
-                if (page.size() < pageSize) {
-                    return;
-                }
-                offset += page.size();
+            processPage(page);
+            if (page.size() < pageSize) {
+                return;
             }
-        } finally {
-            if (Thread.currentThread().isInterrupted()) {
-                workerPool.shutdownNow();
-            } else {
-                workerPool.shutdown();
-            }
+            offset += page.size();
         }
     }
 
-    private void processPage(List<TrackedLinkSnapshot> page, ExecutorService workerPool) {
+    private void processPage(List<TrackedLinkSnapshot> page) {
         List<Future<?>> futures = new ArrayList<>(page.size());
         for (TrackedLinkSnapshot trackedLink : page) {
-            futures.add(workerPool.submit(() -> processTrackedLink(trackedLink)));
+            futures.add(schedulerWorkerExecutor.submit(() -> processTrackedLink(trackedLink)));
         }
         waitForPageCompletion(futures);
     }

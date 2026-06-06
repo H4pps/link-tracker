@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +63,7 @@ class LinkUpdateSchedulerUseCaseTest {
     private ScrapperLogger scrapperLogger;
 
     private SchedulerProperties schedulerProperties;
+    private ExecutorService workerExecutor;
     private LinkUpdateSchedulerUseCase useCase;
 
     @BeforeEach
@@ -70,6 +72,7 @@ class LinkUpdateSchedulerUseCaseTest {
         schedulerProperties = new SchedulerProperties();
         schedulerProperties.setLinkPageSize(2);
         schedulerProperties.setWorkerCount(1);
+        workerExecutor = Executors.newFixedThreadPool(1);
         useCase = new LinkUpdateSchedulerUseCase(
                 linkRepository,
                 linkSourceResolver,
@@ -77,7 +80,15 @@ class LinkUpdateSchedulerUseCaseTest {
                 checkpointRepository,
                 notificationSender,
                 scrapperLogger,
-                schedulerProperties);
+                schedulerProperties,
+                workerExecutor);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (workerExecutor != null) {
+            workerExecutor.shutdownNow();
+        }
     }
 
     @Test
@@ -203,7 +214,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void workerCountTwoProcessesSamePageConcurrently() throws Exception {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         Instant timestamp = Instant.parse("2024-06-01T00:00:00Z");
@@ -239,7 +250,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void pageZeroCompletesBeforePageOneFetchWhenConcurrent() throws Exception {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         TrackedLinkSnapshot third = new TrackedLinkSnapshot(3L, "https://github.com/e/f", List.of(30L));
@@ -287,7 +298,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void interruptionWhileWaitingCancelsWorkersAndPreventsNextPageFetch() throws Exception {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         GithubLinkSource firstSource = new GithubLinkSource("a", "b");
@@ -410,7 +421,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void failedLinkDoesNotBlockSuccessfulSamePageLinkWhenConcurrent() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
@@ -432,7 +443,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void failedLinkSendsFailureReportToTrackedChatsWithoutSavingCheckpoint() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot failed = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L, 11L));
         TrackedLinkSnapshot successful = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         Instant successfulTimestamp = Instant.parse("2024-03-01T00:00:00Z");
@@ -469,7 +480,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void failedLinkReportSendFailureDoesNotBlockSuccessfulSamePageLink() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot failed = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot successful = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         Instant successfulTimestamp = Instant.parse("2024-03-01T00:00:00Z");
@@ -494,7 +505,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void unexpectedWorkerExecutionFailureIsLoggedAndBatchContinues() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         GithubLinkSource firstSource = new GithubLinkSource("a", "b");
@@ -519,7 +530,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void notificationFailureDoesNotSaveCheckpointUnderConcurrency() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L, 11L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L, 21L));
         GithubLinkSource firstSource = new GithubLinkSource("a", "b");
@@ -550,7 +561,7 @@ class LinkUpdateSchedulerUseCaseTest {
 
     @Test
     void checkUpdatesProcessesPagesUntilShortPage() {
-        schedulerProperties.setWorkerCount(2);
+        recreateUseCase(2);
         TrackedLinkSnapshot first = new TrackedLinkSnapshot(1L, "https://github.com/a/b", List.of(10L));
         TrackedLinkSnapshot second = new TrackedLinkSnapshot(2L, "https://github.com/c/d", List.of(20L));
         TrackedLinkSnapshot third = new TrackedLinkSnapshot(3L, "https://github.com/e/f", List.of(30L));
@@ -580,6 +591,32 @@ class LinkUpdateSchedulerUseCaseTest {
 
         verify(linkRepository).findAllTrackedLinks(new RepositoryPageRequest(2, 0));
         verify(linkSourceResolver, never()).resolve(any());
+    }
+
+    @Test
+    void checkUpdatesLeavesInjectedWorkerExecutorReusable() throws Exception {
+        when(linkRepository.findAllTrackedLinks(new RepositoryPageRequest(2, 0)))
+                .thenReturn(List.of());
+
+        useCase.checkUpdates();
+
+        Future<Integer> future = workerExecutor.submit(() -> 42);
+        assertThat(future.get(1, TimeUnit.SECONDS)).isEqualTo(42);
+    }
+
+    private void recreateUseCase(int workerCount) {
+        workerExecutor.shutdownNow();
+        schedulerProperties.setWorkerCount(workerCount);
+        workerExecutor = Executors.newFixedThreadPool(workerCount);
+        useCase = new LinkUpdateSchedulerUseCase(
+                linkRepository,
+                linkSourceResolver,
+                List.of(reader),
+                checkpointRepository,
+                notificationSender,
+                scrapperLogger,
+                schedulerProperties,
+                workerExecutor);
     }
 
     private String captureDescriptionOnChangedUpdate(
