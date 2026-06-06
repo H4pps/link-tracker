@@ -2,7 +2,6 @@ package backend.academy.linktracker.bot.infrastructure.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -12,47 +11,62 @@ class KafkaLinkUpdateConsumerContractTest {
 
     private static final String CONSUMER_CLASS =
             "backend.academy.linktracker.bot.infrastructure.kafka.KafkaLinkUpdateConsumer";
+    private static final String MESSAGE_HANDLER_CLASS =
+            "backend.academy.linktracker.bot.infrastructure.kafka.KafkaLinkUpdateMessageHandler";
     private static final String EVENT_CLASS = "backend.academy.linktracker.messaging.LinkUpdateEvent";
+    private static final String EVENT_MAPPER_CLASS =
+            "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventMapper";
+    private static final String EVENT_VALIDATOR_CLASS =
+            "backend.academy.linktracker.bot.infrastructure.kafka.LinkUpdateEventValidator";
 
     @Test
-    void kafkaConsumerExistsAndDependsOnBotUpdateUseCase() {
+    void kafkaConsumerExistsAndDependsOnMessageHandler() {
         Class<?> consumerClass = loadRequiredClass(CONSUMER_CLASS);
+        Class<?> messageHandlerClass = loadRequiredClass(MESSAGE_HANDLER_CLASS);
 
         assertThat(Arrays.stream(consumerClass.getDeclaredConstructors())
                         .flatMap(constructor -> Arrays.stream(constructor.getParameterTypes()))
-                        .anyMatch(BotUpdateUseCase.class::isAssignableFrom))
-                .as("Kafka consumer must delegate valid events to BotUpdateUseCase")
+                        .anyMatch(messageHandlerClass::isAssignableFrom))
+                .as("Kafka consumer must delegate raw listener inputs to the message handler")
                 .isTrue();
     }
 
     @Test
-    void kafkaConsumerDefinesEventMappingAndValidationContract() {
+    void kafkaConsumerDefinesRawListenerContract() {
         Class<?> consumerClass = loadRequiredClass(CONSUMER_CLASS);
+
+        assertThat(findMethod(consumerClass, "listen", byte[].class, String.class, byte[].class))
+                .as("Consumer listener must keep receiving payload, key, and message-id header")
+                .isNotNull();
+    }
+
+    @Test
+    void mapperAndValidatorDefineEventContract() {
         Class<?> eventClass = loadRequiredClass(EVENT_CLASS);
+        Class<?> mapperClass = loadRequiredClass(EVENT_MAPPER_CLASS);
+        Class<?> validatorClass = loadRequiredClass(EVENT_VALIDATOR_CLASS);
 
         assertThat(hasAccessorOrField(eventClass, "id")).isTrue();
         assertThat(hasAccessorOrField(eventClass, "url")).isTrue();
         assertThat(hasAccessorOrField(eventClass, "description")).isTrue();
         assertThat(hasAccessorOrField(eventClass, "tgChatIds")).isTrue();
-
-        assertThat(findMethod(consumerClass, "consume", eventClass)).isNotNull();
-        assertThat(Arrays.stream(consumerClass.getDeclaredMethods())
+        assertThat(Arrays.stream(mapperClass.getDeclaredMethods())
                         .anyMatch(method -> method.getReturnType().equals(LinkUpdateCommand.class)
                                 && method.getParameterCount() == 1
                                 && method.getParameterTypes()[0].equals(eventClass)))
-                .as("Consumer must map a valid LinkUpdateEvent to LinkUpdateCommand")
+                .as("Mapper must convert a valid LinkUpdateEvent to LinkUpdateCommand")
                 .isTrue();
-        assertThat(Arrays.stream(consumerClass.getDeclaredMethods())
+        assertThat(Arrays.stream(validatorClass.getDeclaredMethods())
                         .anyMatch(method -> method.getName().toLowerCase().contains("validate")
                                 && method.getParameterCount() == 1
                                 && method.getParameterTypes()[0].equals(eventClass)))
-                .as("Consumer must validate positive id, nonblank url, and nonempty positive tgChatIds")
+                .as("Validator must validate positive id, nonblank url, and nonempty positive tgChatIds")
                 .isTrue();
     }
 
-    private Method findMethod(Class<?> type, String methodName, Class<?> parameterType) {
+    private Method findMethod(Class<?> type, String methodName, Class<?>... parameterTypes) {
         try {
-            return type.getMethod(methodName, parameterType);
+            return type.getMethod(methodName, parameterTypes);
         } catch (NoSuchMethodException exception) {
             return null;
         }
