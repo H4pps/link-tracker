@@ -1,0 +1,31 @@
+{
+  "type": "record",
+  "name": "ProcessedLinkUpdateEvent",
+  "namespace": "backend.academy.linktracker.messaging",
+  "fields": [
+    {
+      "name": "id",
+      "type": "long"
+    },
+    {
+      "name": "url",
+      "type": "string"
+    },
+    {
+      "name": "description",
+      "type": "string"
+    },
+    {
+      "name": "tgChatIds",
+      "type": {
+        "type": "array",
+        "items": "long"
+      }
+    },
+    {
+      "name": "priority",
+      "type": "string",
+      "default": "NORMAL"
+    }
+  ]
+}
