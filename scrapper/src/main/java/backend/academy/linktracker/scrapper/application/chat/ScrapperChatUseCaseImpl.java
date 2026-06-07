@@ -1,5 +1,6 @@
 package backend.academy.linktracker.scrapper.application.chat;
 
+import backend.academy.linktracker.scrapper.application.link.ListLinksCache;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class ScrapperChatUseCaseImpl implements ScrapperChatUseCase {
 
     private final ScrapperChatRepository chatRepository;
+    private final ListLinksCache listLinksCache;
     private final ScrapperLogger scrapperLogger;
 
     /**
@@ -39,6 +41,11 @@ public class ScrapperChatUseCaseImpl implements ScrapperChatUseCase {
         scrapperLogger.logUseCaseAccepted("delete-chat", chatId, null);
         if (!chatRepository.delete(chatId)) {
             throw new NotFoundException("Chat not found: " + chatId);
+        }
+        try {
+            listLinksCache.evict(chatId);
+        } catch (RuntimeException exception) {
+            scrapperLogger.logCacheEvictFailed(chatId, exception);
         }
     }
 }

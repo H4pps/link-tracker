@@ -41,12 +41,26 @@ APP_DATABASE_ACCESS_TYPE=SQL
 
 Допустимые значения: `SQL` или `ORM`.
 
-5. При необходимости настройте планировщик проверки ссылок:
+5. Проверьте настройки кэша Scrapper `GET /links`:
+
+- `APP_VALKEY_CLUSTER_NODES` — ноды Valkey cluster, для Docker Compose: `valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002`; для локального запуска из IDE: `localhost:17000,localhost:17001,localhost:17002`;
+- `APP_VALKEY_TIMEOUT` — таймаут операций Redis/Lettuce, по умолчанию `2s`;
+- `APP_CACHE_LIST_LINKS_ENABLED` — включает кэш unpaged `GET /links`, по умолчанию `true`;
+- `APP_CACHE_LIST_LINKS_TTL` — TTL значения в Valkey, по умолчанию `10m`.
+
+Кэшируется только unpaged список ссылок: REST `GET /links` без `limit` или с `limit=0`, и gRPC `ListLinks` с `limit=0`.
+Ключом является только chat id из `Tg-Chat-Id`; paginated вызовы кэш обходят. После успешных `POST /links`,
+`DELETE /links` и удаления чата ключ этого чата удаляется из кэша.
+
+Ошибки чтения, записи и удаления из Valkey не меняют контракт API: Scrapper логирует сбой и продолжает работать через
+репозиторий. Ответы с ошибками не кэшируются.
+
+6. При необходимости настройте планировщик проверки ссылок:
 
 - `APP_SCHEDULER_LINK_PAGE_SIZE` — размер батча ссылок, допустимый диапазон `50..500`, значение по умолчанию `100`.
 - `APP_SCHEDULER_WORKER_COUNT` — количество рабочих потоков, минимум `1`, значение по умолчанию приложения `1` (в `docker-compose.yml` задано `4` для демонстрации многопоточной обработки).
 
-6. Настройте транспорт обновлений Scrapper -> Bot:
+7. Настройте транспорт обновлений Scrapper -> Bot:
 
 - `APP_BOT_MODE` — по умолчанию `kafka` (допустимые значения: `kafka`, `grpc`, `http`).
 - Для Kafka используются:
@@ -73,7 +87,8 @@ APP_DATABASE_ACCESS_TYPE=SQL
 docker compose up --build
 ```
 
-`docker-compose.yml` поднимает PostgreSQL, Kafka KRaft-кластер из 3 брокеров, Schema Registry, инициализацию топиков `link-updates` / `link-updates-dlq` и Kafka UI.
+`docker-compose.yml` поднимает PostgreSQL, Valkey cluster из 3 нод, Kafka KRaft-кластер из 3 брокеров, Schema Registry,
+инициализацию топиков `link-updates` / `link-updates-dlq` и Kafka UI.
 
 ## Запуск вручную / из IDE
 
@@ -81,6 +96,12 @@ docker compose up --build
 
 ```bash
 docker compose up -d postgres kafka-1 kafka-2 kafka-3 schema-registry topic-init
+```
+
+Для Scrapper с включённым кэшем дополнительно поднимите Valkey:
+
+```bash
+docker compose up -d valkey-node-0 valkey-node-1 valkey-node-2 valkey-cluster-init
 ```
 
 2. Для ручного запуска используйте модульные env-файлы с localhost-адресами:
@@ -106,6 +127,20 @@ cp bot/.env.example bot/.env
 
 - в `scrapper/.env` выставьте `APP_BOT_MODE=grpc`;
 - в `bot/.env` выставьте `APP_KAFKA_ENABLED=false`.
+
+Valkey cluster в Compose объявляет ноды как `valkey-node-0..2`, а наружу публикует порты `17000..17002`, чтобы не
+конфликтовать с системными сервисами macOS на `7000`. При запуске Scrapper из IDE с `scrapper/.env.example` и
+localhost-портами убедитесь, что клиент может резолвить имена `valkey-node-0..2` после cluster redirects, либо
+запускайте Scrapper через Docker Compose.
+
+Если ранее уже запускалась другая Valkey cluster topology, удалите старые Valkey volumes перед первым запуском,
+иначе ноды могут подняться со старым `nodes.conf`.
+
+```bash
+docker compose rm -sf valkey-node-0 valkey-node-1 valkey-node-2 valkey-cluster-init
+docker volume rm link-tracker_valkey_node_0_data link-tracker_valkey_node_1_data link-tracker_valkey_node_2_data \
+  2>/dev/null || true
+```
 
 ## Финальные команды проверки (test/lint)
 

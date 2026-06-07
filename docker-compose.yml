@@ -15,6 +15,126 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  valkey-node-0:
+    image: valkey/valkey:8-alpine
+    container_name: link-tracker-valkey-0
+    command:
+      - valkey-server
+      - --port
+      - "7000"
+      - --cluster-enabled
+      - "yes"
+      - --cluster-config-file
+      - nodes.conf
+      - --cluster-node-timeout
+      - "5000"
+      - --appendonly
+      - "yes"
+      - --cluster-announce-ip
+      - valkey-node-0
+      - --cluster-announce-port
+      - "7000"
+      - --cluster-announce-bus-port
+      - "17000"
+    ports:
+      - "17000:7000"
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -p 7000 ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - valkey_node_0_data:/data
+
+  valkey-node-1:
+    image: valkey/valkey:8-alpine
+    container_name: link-tracker-valkey-1
+    command:
+      - valkey-server
+      - --port
+      - "7001"
+      - --cluster-enabled
+      - "yes"
+      - --cluster-config-file
+      - nodes.conf
+      - --cluster-node-timeout
+      - "5000"
+      - --appendonly
+      - "yes"
+      - --cluster-announce-ip
+      - valkey-node-1
+      - --cluster-announce-port
+      - "7001"
+      - --cluster-announce-bus-port
+      - "17001"
+    ports:
+      - "17001:7001"
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -p 7001 ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - valkey_node_1_data:/data
+
+  valkey-node-2:
+    image: valkey/valkey:8-alpine
+    container_name: link-tracker-valkey-2
+    command:
+      - valkey-server
+      - --port
+      - "7002"
+      - --cluster-enabled
+      - "yes"
+      - --cluster-config-file
+      - nodes.conf
+      - --cluster-node-timeout
+      - "5000"
+      - --appendonly
+      - "yes"
+      - --cluster-announce-ip
+      - valkey-node-2
+      - --cluster-announce-port
+      - "7002"
+      - --cluster-announce-bus-port
+      - "17002"
+    ports:
+      - "17002:7002"
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli -p 7002 ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - valkey_node_2_data:/data
+
+  valkey-cluster-init:
+    image: valkey/valkey:8-alpine
+    container_name: link-tracker-valkey-cluster-init
+    depends_on:
+      valkey-node-0:
+        condition: service_healthy
+      valkey-node-1:
+        condition: service_healthy
+      valkey-node-2:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        yes yes | valkey-cli --cluster create valkey-node-0:7000 valkey-node-1:7001 valkey-node-2:7002 --cluster-replicas 0 || true
+        for attempt in $(seq 1 30); do
+          cluster_info="$(valkey-cli -h valkey-node-0 -p 7000 cluster info)"
+          if echo "$$cluster_info" | grep -q 'cluster_state:ok' && echo "$$cluster_info" | grep -q 'cluster_known_nodes:3'; then
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "$$cluster_info"
+        exit 1
+
   kafka-1:
     image: apache/kafka:4.1.1
     container_name: link-tracker-kafka-1
@@ -140,12 +260,18 @@ services:
       APP_KAFKA_RETRY_BACKOFF: ${APP_KAFKA_RETRY_BACKOFF:-1s}
       APP_KAFKA_OUTBOX_BATCH_SIZE: ${APP_KAFKA_OUTBOX_BATCH_SIZE:-100}
       APP_KAFKA_OUTBOX_PUBLISH_INTERVAL: ${APP_KAFKA_OUTBOX_PUBLISH_INTERVAL:-5s}
+      APP_VALKEY_CLUSTER_NODES: ${APP_VALKEY_CLUSTER_NODES:-valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002}
+      APP_VALKEY_TIMEOUT: ${APP_VALKEY_TIMEOUT:-2s}
+      APP_CACHE_LIST_LINKS_ENABLED: ${APP_CACHE_LIST_LINKS_ENABLED:-true}
+      APP_CACHE_LIST_LINKS_TTL: ${APP_CACHE_LIST_LINKS_TTL:-10m}
     ports:
       - "8081:8081"
       - "9091:9091"
     depends_on:
       postgres:
         condition: service_healthy
+      valkey-cluster-init:
+        condition: service_completed_successfully
       topic-init:
         condition: service_completed_successfully
 
@@ -188,3 +314,6 @@ services:
 
 volumes:
   postgres_data:
+  valkey_node_0_data:
+  valkey_node_1_data:
+  valkey_node_2_data:

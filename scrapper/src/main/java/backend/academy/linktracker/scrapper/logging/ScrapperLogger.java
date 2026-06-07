@@ -73,6 +73,36 @@ public class ScrapperLogger {
     }
 
     /**
+     * Logs list-links cache read failure.
+     *
+     * @param chatId telegram chat identifier
+     * @param exception source exception
+     */
+    public void logCacheReadFailed(long chatId, Exception exception) {
+        LOGGER.atWarn().setCause(exception).addKeyValue("chatId", chatId).log("List-links cache read failed");
+    }
+
+    /**
+     * Logs list-links cache write failure.
+     *
+     * @param chatId telegram chat identifier
+     * @param exception source exception
+     */
+    public void logCacheWriteFailed(long chatId, Exception exception) {
+        LOGGER.atWarn().setCause(exception).addKeyValue("chatId", chatId).log("List-links cache write failed");
+    }
+
+    /**
+     * Logs list-links cache eviction failure.
+     *
+     * @param chatId telegram chat identifier
+     * @param exception source exception
+     */
+    public void logCacheEvictFailed(long chatId, Exception exception) {
+        LOGGER.atWarn().setCause(exception).addKeyValue("chatId", chatId).log("List-links cache eviction failed");
+    }
+
+    /**
      * Logs external source fetch failure.
      *
      * @param source source identifier

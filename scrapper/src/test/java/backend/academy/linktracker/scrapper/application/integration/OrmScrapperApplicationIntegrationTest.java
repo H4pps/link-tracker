@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
             "app.grpc.server.port=0",
             "app.scheduler.enabled=false",
             "app.scheduler.link-page-size=50",
+            "app.cache.list-links.enabled=false",
             "app.database.access-type=ORM",
             "app.github.token=test-github-token",
             "app.stackoverflow.key=test-stackoverflow-key",

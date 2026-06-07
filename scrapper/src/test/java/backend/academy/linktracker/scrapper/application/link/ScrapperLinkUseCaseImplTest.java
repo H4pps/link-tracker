@@ -8,6 +8,7 @@ import backend.academy.linktracker.scrapper.application.chat.ScrapperChatReposit
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
+import backend.academy.linktracker.scrapper.infrastructure.cache.NoOpListLinksCache;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
@@ -33,8 +34,9 @@ class ScrapperLinkUseCaseImplTest {
         InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
         ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
         ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
-        linkUseCase = new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
-        chatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
+        NoOpListLinksCache listLinksCache = new NoOpListLinksCache();
+        linkUseCase = new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, listLinksCache, scrapperLogger);
+        chatUseCase = new ScrapperChatUseCaseImpl(chatRepository, listLinksCache, scrapperLogger);
     }
 
     @Test
