@@ -59,3 +59,18 @@ app:
     consumer-group: ${APP_KAFKA_CONSUMER_GROUP:link-tracker-bot}
     max-attempts: ${APP_KAFKA_MAX_ATTEMPTS:3}
     retry-backoff: ${APP_KAFKA_RETRY_BACKOFF:1s}
+  resilience:
+    retry:
+      max-attempts: ${APP_RESILIENCE_RETRY_MAX_ATTEMPTS:3}
+      backoff: ${APP_RESILIENCE_RETRY_BACKOFF:200ms}
+      retryable-http-statuses: ${APP_RESILIENCE_RETRY_RETRYABLE_HTTP_STATUSES:500,502,503,504}
+    circuit-breaker:
+      failure-rate-threshold: ${APP_RESILIENCE_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD:50}
+      sliding-window-size: ${APP_RESILIENCE_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:10}
+      minimum-number-of-calls: ${APP_RESILIENCE_CIRCUIT_BREAKER_MINIMUM_NUMBER_OF_CALLS:5}
+      permitted-calls-in-half-open-state: ${APP_RESILIENCE_CIRCUIT_BREAKER_PERMITTED_CALLS_IN_HALF_OPEN_STATE:2}
+      open-state-duration: ${APP_RESILIENCE_CIRCUIT_BREAKER_OPEN_STATE_DURATION:5s}
+    rate-limit:
+      limit-for-period: ${APP_RESILIENCE_RATE_LIMIT_LIMIT_FOR_PERIOD:60}
+      limit-refresh-period: ${APP_RESILIENCE_RATE_LIMIT_LIMIT_REFRESH_PERIOD:1m}
+      timeout-duration: ${APP_RESILIENCE_RATE_LIMIT_TIMEOUT_DURATION:0ms}
