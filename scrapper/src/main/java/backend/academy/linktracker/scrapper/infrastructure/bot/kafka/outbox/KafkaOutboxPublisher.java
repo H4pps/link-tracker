@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "app.bot", name = "mode", havingValue = "kafka", matchIfMissing = true)
+@ConditionalOnExpression("'${app.bot.mode:kafka}' == 'kafka' || '${app.bot.mode:kafka}' == 'grpc'")
 public class KafkaOutboxPublisher {
 
     private final LinkUpdateOutboxRepository outboxRepository;
