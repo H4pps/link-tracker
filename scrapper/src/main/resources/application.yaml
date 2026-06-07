@@ -26,7 +26,7 @@ spring:
   data:
     redis:
       cluster:
-        nodes: ${APP_VALKEY_CLUSTER_NODES:localhost:17000,localhost:17001,localhost:17002,localhost:17003,localhost:17004,localhost:17005}
+        nodes: ${APP_VALKEY_CLUSTER_NODES:localhost:17000,localhost:17001,localhost:17002}
       timeout: ${APP_VALKEY_TIMEOUT:2s}
 
 logging:
@@ -66,7 +66,6 @@ app:
     list-links:
       enabled: ${APP_CACHE_LIST_LINKS_ENABLED:true}
       ttl: ${APP_CACHE_LIST_LINKS_TTL:10m}
-    client-side-enabled: ${APP_CACHE_CLIENT_SIDE_ENABLED:true}
   stackoverflow:
     base-url: ${APP_STACKOVERFLOW_BASE_URL:https://api.stackexchange.com}
     key: ${STACKOVERFLOW_KEY} # Use env variable. DO NOT KEEP TOKEN HERE

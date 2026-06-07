@@ -111,102 +111,6 @@ services:
     volumes:
       - valkey_node_2_data:/data
 
-  valkey-node-3:
-    image: valkey/valkey:8-alpine
-    container_name: link-tracker-valkey-3
-    command:
-      - valkey-server
-      - --port
-      - "7003"
-      - --cluster-enabled
-      - "yes"
-      - --cluster-config-file
-      - nodes.conf
-      - --cluster-node-timeout
-      - "5000"
-      - --appendonly
-      - "yes"
-      - --cluster-announce-ip
-      - valkey-node-3
-      - --cluster-announce-port
-      - "7003"
-      - --cluster-announce-bus-port
-      - "17003"
-    ports:
-      - "17003:7003"
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli -p 7003 ping | grep -q PONG"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    volumes:
-      - valkey_node_3_data:/data
-
-  valkey-node-4:
-    image: valkey/valkey:8-alpine
-    container_name: link-tracker-valkey-4
-    command:
-      - valkey-server
-      - --port
-      - "7004"
-      - --cluster-enabled
-      - "yes"
-      - --cluster-config-file
-      - nodes.conf
-      - --cluster-node-timeout
-      - "5000"
-      - --appendonly
-      - "yes"
-      - --cluster-announce-ip
-      - valkey-node-4
-      - --cluster-announce-port
-      - "7004"
-      - --cluster-announce-bus-port
-      - "17004"
-    ports:
-      - "17004:7004"
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli -p 7004 ping | grep -q PONG"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    volumes:
-      - valkey_node_4_data:/data
-
-  valkey-node-5:
-    image: valkey/valkey:8-alpine
-    container_name: link-tracker-valkey-5
-    command:
-      - valkey-server
-      - --port
-      - "7005"
-      - --cluster-enabled
-      - "yes"
-      - --cluster-config-file
-      - nodes.conf
-      - --cluster-node-timeout
-      - "5000"
-      - --appendonly
-      - "yes"
-      - --cluster-announce-ip
-      - valkey-node-5
-      - --cluster-announce-port
-      - "7005"
-      - --cluster-announce-bus-port
-      - "17005"
-    ports:
-      - "17005:7005"
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli -p 7005 ping | grep -q PONG"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-    volumes:
-      - valkey_node_5_data:/data
-
   valkey-cluster-init:
     image: valkey/valkey:8-alpine
     container_name: link-tracker-valkey-cluster-init
@@ -217,19 +121,13 @@ services:
         condition: service_healthy
       valkey-node-2:
         condition: service_healthy
-      valkey-node-3:
-        condition: service_healthy
-      valkey-node-4:
-        condition: service_healthy
-      valkey-node-5:
-        condition: service_healthy
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        yes yes | valkey-cli --cluster create valkey-node-0:7000 valkey-node-1:7001 valkey-node-2:7002 valkey-node-3:7003 valkey-node-4:7004 valkey-node-5:7005 --cluster-replicas 1 || true
+        yes yes | valkey-cli --cluster create valkey-node-0:7000 valkey-node-1:7001 valkey-node-2:7002 --cluster-replicas 0 || true
         for attempt in $(seq 1 30); do
           cluster_info="$(valkey-cli -h valkey-node-0 -p 7000 cluster info)"
-          if echo "$$cluster_info" | grep -q 'cluster_state:ok' && echo "$$cluster_info" | grep -q 'cluster_known_nodes:6'; then
+          if echo "$$cluster_info" | grep -q 'cluster_state:ok' && echo "$$cluster_info" | grep -q 'cluster_known_nodes:3'; then
             exit 0
           fi
           sleep 1
@@ -362,11 +260,10 @@ services:
       APP_KAFKA_RETRY_BACKOFF: ${APP_KAFKA_RETRY_BACKOFF:-1s}
       APP_KAFKA_OUTBOX_BATCH_SIZE: ${APP_KAFKA_OUTBOX_BATCH_SIZE:-100}
       APP_KAFKA_OUTBOX_PUBLISH_INTERVAL: ${APP_KAFKA_OUTBOX_PUBLISH_INTERVAL:-5s}
-      APP_VALKEY_CLUSTER_NODES: ${APP_VALKEY_CLUSTER_NODES:-valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002,valkey-node-3:7003,valkey-node-4:7004,valkey-node-5:7005}
+      APP_VALKEY_CLUSTER_NODES: ${APP_VALKEY_CLUSTER_NODES:-valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002}
       APP_VALKEY_TIMEOUT: ${APP_VALKEY_TIMEOUT:-2s}
       APP_CACHE_LIST_LINKS_ENABLED: ${APP_CACHE_LIST_LINKS_ENABLED:-true}
       APP_CACHE_LIST_LINKS_TTL: ${APP_CACHE_LIST_LINKS_TTL:-10m}
-      APP_CACHE_CLIENT_SIDE_ENABLED: ${APP_CACHE_CLIENT_SIDE_ENABLED:-true}
     ports:
       - "8081:8081"
       - "9091:9091"
@@ -420,6 +317,3 @@ volumes:
   valkey_node_0_data:
   valkey_node_1_data:
   valkey_node_2_data:
-  valkey_node_3_data:
-  valkey_node_4_data:
-  valkey_node_5_data:
