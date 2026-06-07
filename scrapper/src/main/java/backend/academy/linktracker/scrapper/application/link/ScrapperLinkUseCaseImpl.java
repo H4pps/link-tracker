@@ -8,6 +8,7 @@ import backend.academy.linktracker.scrapper.domain.model.TrackedSubscription;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
 
     private final ScrapperChatRepository chatRepository;
     private final ScrapperLinkRepository linkRepository;
+    private final ListLinksCache listLinksCache;
     private final ScrapperLogger scrapperLogger;
 
     /**
@@ -44,6 +46,31 @@ public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
     public List<LinkView> listLinks(long chatId, RepositoryPageRequest pageRequest) {
         scrapperLogger.logUseCaseAccepted("list-links", chatId, null);
         requireChatExists(chatId);
+        if (!pageRequest.bounded()) {
+            return listUnpagedLinks(chatId);
+        }
+        return loadLinks(chatId, pageRequest);
+    }
+
+    private List<LinkView> listUnpagedLinks(long chatId) {
+        try {
+            Optional<List<LinkView>> cachedLinks = listLinksCache.get(chatId);
+            if (cachedLinks.isPresent()) {
+                return List.copyOf(cachedLinks.orElseThrow());
+            }
+        } catch (RuntimeException exception) {
+            scrapperLogger.logCacheReadFailed(chatId, exception);
+        }
+        List<LinkView> links = loadLinks(chatId, RepositoryPageRequest.all());
+        try {
+            listLinksCache.put(chatId, links);
+        } catch (RuntimeException exception) {
+            scrapperLogger.logCacheWriteFailed(chatId, exception);
+        }
+        return links;
+    }
+
+    private List<LinkView> loadLinks(long chatId, RepositoryPageRequest pageRequest) {
         return linkRepository.findAllByChatId(chatId, pageRequest).stream()
                 .sorted(Comparator.comparingLong(TrackedSubscription::id))
                 .map(this::toLinkView)
@@ -67,6 +94,7 @@ public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
         if (created == null) {
             throw new AlreadyExistsException("Link already tracked for chat: " + command.link());
         }
+        evictListLinksCache(chatId);
         return toLinkView(created);
     }
 
@@ -86,7 +114,16 @@ public class ScrapperLinkUseCaseImpl implements ScrapperLinkUseCase {
         if (removed == null) {
             throw new NotFoundException("Link not found for chat: " + command.link());
         }
+        evictListLinksCache(chatId);
         return toLinkView(removed);
+    }
+
+    private void evictListLinksCache(long chatId) {
+        try {
+            listLinksCache.evict(chatId);
+        } catch (RuntimeException exception) {
+            scrapperLogger.logCacheEvictFailed(chatId, exception);
+        }
     }
 
     private void requireChatExists(long chatId) {
