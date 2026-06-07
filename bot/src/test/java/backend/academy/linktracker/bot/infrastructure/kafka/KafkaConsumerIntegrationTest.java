@@ -13,7 +13,7 @@ import backend.academy.linktracker.bot.BotApplication;
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.LinkUpdateCommand;
 import backend.academy.linktracker.bot.support.KafkaTestCluster;
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.nio.charset.StandardCharsets;
@@ -57,8 +57,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(classes = BotApplication.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 class KafkaConsumerIntegrationTest {
 
-    private static final String LINK_UPDATES_TOPIC = "link-updates";
-    private static final String LINK_UPDATES_DLQ_TOPIC = "link-updates-dlq";
+    private static final String LINK_UPDATES_TOPIC = "link.processed-updates";
+    private static final String LINK_UPDATES_DLQ_TOPIC = "link.processed-updates-dlq";
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
@@ -98,7 +98,8 @@ class KafkaConsumerIntegrationTest {
         long id = 1001L;
         publishAvro(
                 "valid-" + id,
-                new LinkUpdateEvent(id, "https://github.com/acme/repo", "changed: new issue", List.of(10L, 20L)));
+                new ProcessedLinkUpdateEvent(
+                        id, "https://github.com/acme/repo", "changed: new issue", List.of(10L, 20L), "NORMAL"));
 
         Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> verify(botUpdateUseCase, atLeastOnce())
                 .processLinkUpdate(argThat(command -> command != null && command.id() == id)));
@@ -123,7 +124,10 @@ class KafkaConsumerIntegrationTest {
     void invalidEventIsRoutedToDlqAsValidationFailure() {
         long invalidId = 0L;
         String key = "validation-" + UUID.randomUUID();
-        publishAvro(key, new LinkUpdateEvent(invalidId, "https://github.com/acme/repo", "desc", List.of(10L)));
+        publishAvro(
+                key,
+                new ProcessedLinkUpdateEvent(
+                        invalidId, "https://github.com/acme/repo", "desc", List.of(10L), "NORMAL"));
 
         ConsumerRecord<String, byte[]> dlqRecord = awaitDlqRecord(key);
         assertThat(errorType(dlqRecord)).isEqualTo("validation");
@@ -144,7 +148,8 @@ class KafkaConsumerIntegrationTest {
                 .when(botUpdateUseCase)
                 .processLinkUpdate(any());
 
-        publishAvro(key, new LinkUpdateEvent(id, "https://github.com/acme/repo", "desc", List.of(10L)));
+        publishAvro(
+                key, new ProcessedLinkUpdateEvent(id, "https://github.com/acme/repo", "desc", List.of(10L), "NORMAL"));
 
         ConsumerRecord<String, byte[]> dlqRecord = awaitDlqRecord(key);
         assertThat(errorType(dlqRecord)).isEqualTo("processing");
@@ -156,7 +161,8 @@ class KafkaConsumerIntegrationTest {
     void duplicateMessageIdIsProcessedOnlyOnce() {
         long id = 2002L;
         String messageId = UUID.randomUUID().toString();
-        LinkUpdateEvent event = new LinkUpdateEvent(id, "https://github.com/acme/repo", "changed", List.of(10L));
+        ProcessedLinkUpdateEvent event =
+                new ProcessedLinkUpdateEvent(id, "https://github.com/acme/repo", "changed", List.of(10L), "NORMAL");
 
         publishAvro("dup-a-" + id, event, messageId);
         Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> verify(botUpdateUseCase, times(1))
@@ -171,11 +177,11 @@ class KafkaConsumerIntegrationTest {
                         verify(botUpdateUseCase, times(1)).processLinkUpdate(argThat(command -> command.id() == id)));
     }
 
-    private void publishAvro(String key, LinkUpdateEvent event) {
+    private void publishAvro(String key, ProcessedLinkUpdateEvent event) {
         publishAvro(key, event, UUID.randomUUID().toString());
     }
 
-    private void publishAvro(String key, LinkUpdateEvent event, String messageId) {
+    private void publishAvro(String key, ProcessedLinkUpdateEvent event, String messageId) {
         Map<String, Object> config = Map.of(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 KafkaTestCluster.bootstrapServers(),
@@ -185,8 +191,9 @@ class KafkaConsumerIntegrationTest {
                 KafkaAvroSerializer.class,
                 AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG,
                 KafkaTestCluster.schemaRegistryUrl());
-        try (KafkaProducer<String, LinkUpdateEvent> producer = new KafkaProducer<>(config)) {
-            ProducerRecord<String, LinkUpdateEvent> record = new ProducerRecord<>(LINK_UPDATES_TOPIC, key, event);
+        try (KafkaProducer<String, ProcessedLinkUpdateEvent> producer = new KafkaProducer<>(config)) {
+            ProducerRecord<String, ProcessedLinkUpdateEvent> record =
+                    new ProducerRecord<>(LINK_UPDATES_TOPIC, key, event);
             record.headers().add(new RecordHeader("message-id", messageId.getBytes(StandardCharsets.UTF_8)));
             producer.send(record);
             producer.flush();

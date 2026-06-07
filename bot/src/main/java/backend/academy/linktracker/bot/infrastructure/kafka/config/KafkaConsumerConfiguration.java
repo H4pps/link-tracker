@@ -3,7 +3,7 @@ package backend.academy.linktracker.bot.infrastructure.kafka.config;
 import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateDeserializationException;
 import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateValidationException;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
@@ -78,7 +78,7 @@ class KafkaConsumerConfiguration {
             KafkaProperties kafkaProperties, KafkaTemplate<String, byte[]> kafkaBytesTemplate) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 kafkaBytesTemplate,
-                (record, exception) -> new TopicPartition(kafkaProperties.getLinkUpdatesDlqTopic(), -1));
+                (record, exception) -> new TopicPartition(kafkaProperties.getProcessedUpdatesDlqTopic(), -1));
         recoverer.setHeadersFunction((record, exception) -> dlqHeaders(kafkaProperties, exception));
         return recoverer;
     }
@@ -109,7 +109,7 @@ class KafkaConsumerConfiguration {
     }
 
     @Bean
-    ProducerFactory<String, LinkUpdateEvent> kafkaAvroProducerFactory(KafkaProperties kafkaProperties) {
+    ProducerFactory<String, ProcessedLinkUpdateEvent> kafkaAvroProducerFactory(KafkaProperties kafkaProperties) {
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
@@ -119,8 +119,8 @@ class KafkaConsumerConfiguration {
     }
 
     @Bean
-    KafkaTemplate<String, LinkUpdateEvent> kafkaTemplate(
-            ProducerFactory<String, LinkUpdateEvent> kafkaAvroProducerFactory) {
+    KafkaTemplate<String, ProcessedLinkUpdateEvent> kafkaTemplate(
+            ProducerFactory<String, ProcessedLinkUpdateEvent> kafkaAvroProducerFactory) {
         return new KafkaTemplate<>(kafkaAvroProducerFactory);
     }
 

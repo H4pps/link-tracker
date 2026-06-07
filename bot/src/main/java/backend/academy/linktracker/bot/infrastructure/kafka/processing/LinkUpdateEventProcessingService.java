@@ -3,7 +3,7 @@ package backend.academy.linktracker.bot.infrastructure.kafka.processing;
 import backend.academy.linktracker.bot.application.update.BotUpdateUseCase;
 import backend.academy.linktracker.bot.application.update.ProcessedUpdateRepository;
 import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateValidationException;
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ public class LinkUpdateEventProcessingService {
     private final LinkUpdateEventValidator validator;
     private final LinkUpdateEventMapper mapper;
 
-    public void process(LinkUpdateEvent event, UUID messageId) {
+    public void process(ProcessedLinkUpdateEvent event, UUID messageId) {
         try {
             validator.validate(event);
         } catch (IllegalArgumentException exception) {

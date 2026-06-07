@@ -1,15 +1,15 @@
 package backend.academy.linktracker.bot.infrastructure.kafka.processing;
 
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import org.springframework.stereotype.Component;
 
 /**
- * Validates Avro link update events before bot delivery.
+ * Validates Avro processed link update events before bot delivery.
  */
 @Component
 public class LinkUpdateEventValidator {
 
-    void validate(LinkUpdateEvent event) {
+    void validate(ProcessedLinkUpdateEvent event) {
         if (event == null) {
             throw new IllegalArgumentException("event must not be null");
         }

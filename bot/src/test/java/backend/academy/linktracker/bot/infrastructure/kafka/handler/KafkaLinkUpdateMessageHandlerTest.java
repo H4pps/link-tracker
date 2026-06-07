@@ -17,7 +17,7 @@ import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdat
 import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventProcessingService;
 import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventValidator;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -46,7 +46,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @BeforeEach
     void setUp() {
         KafkaProperties kafkaProperties = new KafkaProperties();
-        kafkaProperties.setLinkUpdatesTopic("link-updates");
+        kafkaProperties.setProcessedUpdatesTopic("link.processed-updates");
         LinkUpdateEventProcessingService processingService = new LinkUpdateEventProcessingService(
                 botUpdateUseCase,
                 processedUpdateRepository,
@@ -58,7 +58,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @Test
     void handleMapsValidEventToUseCaseCommand() {
         byte[] payload = new byte[] {1, 2, 3};
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(1L, "https://example.com", "changed", List.of(10L, 20L)));
 
         messageHandler.handle(payload, "key-1", null);
@@ -74,7 +74,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @Test
     void handleThrowsValidationExceptionWithoutCallingUseCase() {
         byte[] payload = new byte[] {1, 2, 3};
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(0L, "https://example.com", "changed", List.of(10L)));
 
         assertThatThrownBy(() -> messageHandler.handle(payload, "key-2", null))
@@ -88,7 +88,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @Test
     void handleThrowsDeserializationExceptionWithoutCallingUseCase() {
         byte[] payload = new byte[] {7, 8, 9};
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenThrow(new IllegalStateException("broken avro payload"));
 
         assertThatThrownBy(() -> messageHandler.handle(payload, "key-3", null))
@@ -102,7 +102,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @Test
     void handlePropagatesProcessingExceptionForContainerRetry() {
         byte[] payload = new byte[] {4, 5, 6};
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(1L, "https://example.com", "changed", List.of(10L)));
         doThrow(new IllegalStateException("telegram unavailable"))
                 .when(botUpdateUseCase)
@@ -119,7 +119,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     void handleSkipsAlreadyProcessedMessageId() {
         byte[] payload = new byte[] {14, 15, 16};
         UUID messageId = UUID.randomUUID();
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(1L, "https://example.com", "changed", List.of(10L)));
         when(processedUpdateRepository.isProcessed(messageId)).thenReturn(true);
 
@@ -133,7 +133,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     void handleMarksMessageIdProcessedAfterSuccessfulDelivery() {
         byte[] payload = new byte[] {17, 18, 19};
         UUID messageId = UUID.randomUUID();
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(1L, "https://example.com", "changed", List.of(10L)));
 
         messageHandler.handle(payload, "key-8", messageId.toString().getBytes(StandardCharsets.UTF_8));
@@ -145,7 +145,7 @@ class KafkaLinkUpdateMessageHandlerTest {
     @Test
     void invalidMessageIdHeaderDoesNotUseIdempotencyRepository() {
         byte[] payload = new byte[] {20, 21, 22};
-        when(kafkaAvroDeserializer.deserialize("link-updates", payload))
+        when(kafkaAvroDeserializer.deserialize("link.processed-updates", payload))
                 .thenReturn(event(1L, "https://example.com", "changed", List.of(10L)));
 
         messageHandler.handle(payload, "key-9", "not-a-uuid".getBytes(StandardCharsets.UTF_8));
@@ -155,12 +155,13 @@ class KafkaLinkUpdateMessageHandlerTest {
         verify(processedUpdateRepository, never()).markProcessed(any());
     }
 
-    private LinkUpdateEvent event(long id, String url, String description, List<Long> chatIds) {
-        LinkUpdateEvent event = new LinkUpdateEvent();
+    private ProcessedLinkUpdateEvent event(long id, String url, String description, List<Long> chatIds) {
+        ProcessedLinkUpdateEvent event = new ProcessedLinkUpdateEvent();
         event.setId(id);
         event.setUrl(url);
         event.setDescription(description);
         event.setTgChatIds(chatIds);
+        event.setPriority("NORMAL");
         return event;
     }
 }
