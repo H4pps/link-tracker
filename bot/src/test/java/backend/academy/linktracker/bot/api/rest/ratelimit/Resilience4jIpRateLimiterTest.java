@@ -22,7 +22,8 @@ class Resilience4jIpRateLimiterTest {
         Resilience4jIpRateLimiter rateLimiter = new Resilience4jIpRateLimiter(rateLimitProperties());
 
         assertThat(rateLimiter.tryAcquire("203.0.113.1")).isTrue();
-        assertTimeout(Duration.ofMillis(100), () -> assertThat(rateLimiter.tryAcquire("203.0.113.1")).isFalse());
+        assertTimeout(Duration.ofMillis(100), () -> assertThat(rateLimiter.tryAcquire("203.0.113.1"))
+                .isFalse());
     }
 
     private ResilienceProperties rateLimitProperties() {
