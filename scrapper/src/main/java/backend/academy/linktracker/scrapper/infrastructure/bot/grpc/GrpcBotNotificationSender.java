@@ -3,16 +3,17 @@ package backend.academy.linktracker.scrapper.infrastructure.bot.grpc;
 import backend.academy.linktracker.grpc.Ack;
 import backend.academy.linktracker.grpc.BotServiceGrpc;
 import backend.academy.linktracker.grpc.LinkUpdateRequest;
-import backend.academy.linktracker.scrapper.application.update.BotNotificationSender;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateNotification;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.GrpcResiliencePredicates;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.ResilientCallExecutor;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.BotProperties;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.PreDestroy;
 import java.util.concurrent.TimeUnit;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -20,31 +21,37 @@ import org.springframework.stereotype.Component;
  * gRPC sender for scrapper-to-bot update notifications.
  */
 @Component
-@RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "app.bot", name = "mode", havingValue = "grpc", matchIfMissing = false)
-public class GrpcBotNotificationSender implements BotNotificationSender {
+public class GrpcBotNotificationSender {
 
     private final BotProperties botProperties;
+    private final ResilientCallExecutor resilientCallExecutor;
     private final ScrapperLogger scrapperLogger;
 
     private ManagedChannel channel;
     private BotServiceGrpc.BotServiceBlockingStub blockingStub;
 
+    public GrpcBotNotificationSender(
+            BotProperties botProperties, ResilienceProperties resilienceProperties, ScrapperLogger scrapperLogger) {
+        this.botProperties = botProperties;
+        this.resilientCallExecutor = new ResilientCallExecutor(resilienceProperties);
+        this.scrapperLogger = scrapperLogger;
+    }
+
     /**
-     * {@inheritDoc}
+     * Sends update payload to the Bot gRPC endpoint.
+     *
+     * @param notification update payload
+     * @return true when bot accepted notification
      */
-    @Override
     public synchronized boolean send(LinkUpdateNotification notification) {
         try {
-            initializeIfNeeded();
-            Ack response = withDeadline()
-                    .sendUpdate(LinkUpdateRequest.newBuilder()
-                            .setId(notification.id())
-                            .setUrl(notification.url())
-                            .setDescription(notification.description() == null ? "" : notification.description())
-                            .addAllTgChatIds(notification.tgChatIds())
-                            .build());
-            return response.getAccepted();
+            return resilientCallExecutor.execute(
+                    "bot-grpc-notifications",
+                    () -> sendOnce(notification),
+                    GrpcResiliencePredicates::isRetryableFailure,
+                    throwable -> GrpcResiliencePredicates.isCircuitBreakerFailure(throwable)
+                            || throwable instanceof BotNotificationRejectedException);
         } catch (StatusRuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(
                     "bot-grpc",
@@ -74,11 +81,26 @@ public class GrpcBotNotificationSender implements BotNotificationSender {
         }
     }
 
-    private BotServiceGrpc.BotServiceBlockingStub withDeadline() {
+    private synchronized BotServiceGrpc.BotServiceBlockingStub withDeadline() {
         return blockingStub.withDeadlineAfter(botProperties.getGrpcDeadline().toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    private void initializeIfNeeded() {
+    private boolean sendOnce(LinkUpdateNotification notification) {
+        initializeIfNeeded();
+        Ack response = withDeadline()
+                .sendUpdate(LinkUpdateRequest.newBuilder()
+                        .setId(notification.id())
+                        .setUrl(notification.url())
+                        .setDescription(notification.description() == null ? "" : notification.description())
+                        .addAllTgChatIds(notification.tgChatIds())
+                        .build());
+        if (!response.getAccepted()) {
+            throw new BotNotificationRejectedException();
+        }
+        return true;
+    }
+
+    private synchronized void initializeIfNeeded() {
         if (channel != null) {
             return;
         }
@@ -86,5 +108,11 @@ public class GrpcBotNotificationSender implements BotNotificationSender {
                 .usePlaintext()
                 .build();
         blockingStub = BotServiceGrpc.newBlockingStub(channel);
+    }
+
+    private static class BotNotificationRejectedException extends RuntimeException {
+        private BotNotificationRejectedException() {
+            super("Bot rejected gRPC notification");
+        }
     }
 }

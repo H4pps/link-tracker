@@ -3,7 +3,10 @@ package backend.academy.linktracker.bot.infrastructure.scrapper.grpc;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperConflictException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
+import backend.academy.linktracker.bot.infrastructure.resilience.GrpcResiliencePredicates;
+import backend.academy.linktracker.bot.infrastructure.resilience.ResilientCallExecutor;
 import backend.academy.linktracker.bot.logging.BotLogger;
+import backend.academy.linktracker.bot.properties.ResilienceProperties;
 import backend.academy.linktracker.bot.properties.ScrapperProperties;
 import backend.academy.linktracker.grpc.ScrapperServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -25,6 +28,7 @@ public class GrpcScrapperClient {
     private final ManagedChannel channel;
     private final ScrapperServiceGrpc.ScrapperServiceBlockingStub blockingStub;
     private final ScrapperProperties scrapperProperties;
+    private final ResilientCallExecutor resilientCallExecutor;
     private final BotLogger botLogger;
 
     /**
@@ -33,8 +37,10 @@ public class GrpcScrapperClient {
      * @param scrapperProperties scrapper transport properties
      * @param botLogger structured logger
      */
-    public GrpcScrapperClient(ScrapperProperties scrapperProperties, BotLogger botLogger) {
+    public GrpcScrapperClient(
+            ScrapperProperties scrapperProperties, ResilienceProperties resilienceProperties, BotLogger botLogger) {
         this.scrapperProperties = scrapperProperties;
+        this.resilientCallExecutor = new ResilientCallExecutor(resilienceProperties);
         this.botLogger = botLogger;
         this.channel = ManagedChannelBuilder.forAddress(
                         scrapperProperties.getGrpcHost(), scrapperProperties.getGrpcPort())
@@ -56,11 +62,19 @@ public class GrpcScrapperClient {
     public <T> T execute(String operation, long chatId, String url, GrpcCall<T> call) {
         try {
             botLogger.logScrapperRequest(operation, chatId, url);
-            return call.execute(withDeadline());
+            return resilientCallExecutor.execute(
+                    "scrapper-grpc",
+                    () -> call.execute(withDeadline()),
+                    GrpcResiliencePredicates::isRetryableFailure,
+                    GrpcResiliencePredicates::isCircuitBreakerFailure);
         } catch (StatusRuntimeException exception) {
             String code = exception.getStatus().getCode().name();
             botLogger.logScrapperRequestFailed(operation, chatId, url, 0, code);
             throw mapException(exception);
+        } catch (RuntimeException exception) {
+            String code = exception.getClass().getSimpleName();
+            botLogger.logScrapperRequestFailed(operation, chatId, url, 0, code);
+            throw new ScrapperUnavailableException("Scrapper gRPC resilience error: " + code, exception);
         }
     }
 

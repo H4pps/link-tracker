@@ -8,6 +8,7 @@ import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperCo
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperNotFoundException;
 import backend.academy.linktracker.bot.application.scrapper.exception.ScrapperUnavailableException;
 import backend.academy.linktracker.bot.logging.BotLogger;
+import backend.academy.linktracker.bot.properties.ResilienceProperties;
 import backend.academy.linktracker.bot.properties.ScrapperProperties;
 import backend.academy.linktracker.grpc.AddLinkRequest;
 import backend.academy.linktracker.grpc.Link;
@@ -118,7 +119,12 @@ class GrpcScrapperLinkGatewayTest {
         properties.setGrpcHost("localhost");
         properties.setGrpcPort(port);
         properties.setGrpcDeadline(Duration.ofSeconds(10));
-        client = new GrpcScrapperClient(properties, new BotLogger());
+        ResilienceProperties resilienceProperties = new ResilienceProperties();
+        resilienceProperties.retry().setMaxAttempts(3);
+        resilienceProperties.retry().setBackoff(Duration.ofMillis(1));
+        resilienceProperties.circuitBreaker().setMinimumNumberOfCalls(10);
+        resilienceProperties.circuitBreaker().setSlidingWindowSize(10);
+        client = new GrpcScrapperClient(properties, resilienceProperties, new BotLogger());
         return client;
     }
 }
