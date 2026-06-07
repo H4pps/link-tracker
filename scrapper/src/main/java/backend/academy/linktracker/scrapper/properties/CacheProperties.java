@@ -17,7 +17,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @NoArgsConstructor
 public class CacheProperties {
 
-    private boolean clientSideEnabled = true;
     private ListLinks listLinks = new ListLinks();
 
     /**
