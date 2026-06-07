@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.RawLinkUpdateEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
@@ -33,7 +33,7 @@ class KafkaOutboxPublisherTest {
     private LinkUpdateOutboxRepository outboxRepository;
 
     @Mock
-    private KafkaTemplate<String, LinkUpdateEvent> kafkaTemplate;
+    private KafkaTemplate<String, RawLinkUpdateEvent> kafkaTemplate;
 
     @Mock
     private ScrapperLogger scrapperLogger;
@@ -45,7 +45,7 @@ class KafkaOutboxPublisherTest {
     @BeforeEach
     void setUp() {
         kafkaProperties = new KafkaProperties();
-        kafkaProperties.setLinkUpdatesTopic("link-updates");
+        kafkaProperties.setRawUpdatesTopic("link.raw-updates");
         kafkaProperties.setOutboxBatchSize(10);
         kafkaProperties.setRetryBackoff(Duration.ofSeconds(1));
         mapper = new LinkUpdateOutboxEventMapper();
@@ -60,6 +60,7 @@ class KafkaOutboxPublisherTest {
                 11L,
                 "https://example.com",
                 "changed",
+                "octocat",
                 List.of(100L),
                 LinkUpdateOutboxEvent.Status.PENDING,
                 0,
@@ -85,6 +86,7 @@ class KafkaOutboxPublisherTest {
                 11L,
                 "https://example.com",
                 "changed",
+                "octocat",
                 List.of(100L),
                 LinkUpdateOutboxEvent.Status.PENDING,
                 0,
@@ -93,7 +95,7 @@ class KafkaOutboxPublisherTest {
                 Instant.now(),
                 Instant.now(),
                 null);
-        CompletableFuture<SendResult<String, LinkUpdateEvent>> failedFuture = new CompletableFuture<>();
+        CompletableFuture<SendResult<String, RawLinkUpdateEvent>> failedFuture = new CompletableFuture<>();
         failedFuture.completeExceptionally(new IllegalStateException("kafka unavailable"));
 
         when(outboxRepository.findPending(any(), eq(10))).thenReturn(List.of(pending));
@@ -105,7 +107,7 @@ class KafkaOutboxPublisherTest {
         verify(outboxRepository, never()).markSent(anyLong());
     }
 
-    private ProducerRecord<String, LinkUpdateEvent> anyRecord() {
+    private ProducerRecord<String, RawLinkUpdateEvent> anyRecord() {
         return any();
     }
 }

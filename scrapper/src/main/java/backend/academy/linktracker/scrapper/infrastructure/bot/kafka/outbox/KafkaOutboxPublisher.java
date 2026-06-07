@@ -1,6 +1,6 @@
 package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.outbox;
 
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.RawLinkUpdateEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
@@ -26,7 +26,7 @@ import org.springframework.stereotype.Component;
 public class KafkaOutboxPublisher {
 
     private final LinkUpdateOutboxRepository outboxRepository;
-    private final KafkaTemplate<String, LinkUpdateEvent> kafkaTemplate;
+    private final KafkaTemplate<String, RawLinkUpdateEvent> kafkaTemplate;
     private final KafkaProperties kafkaProperties;
     private final ScrapperLogger scrapperLogger;
     private final LinkUpdateOutboxEventMapper mapper;
@@ -45,8 +45,8 @@ public class KafkaOutboxPublisher {
             return;
         }
         try {
-            ProducerRecord<String, LinkUpdateEvent> record = new ProducerRecord<>(
-                    kafkaProperties.getLinkUpdatesTopic(), outboxEvent.url(), mapper.toEvent(outboxEvent));
+            ProducerRecord<String, RawLinkUpdateEvent> record = new ProducerRecord<>(
+                    kafkaProperties.getRawUpdatesTopic(), outboxEvent.url(), mapper.toEvent(outboxEvent));
             record.headers()
                     .add(new RecordHeader(
                             "message-id", outboxEvent.messageId().toString().getBytes(StandardCharsets.UTF_8)));

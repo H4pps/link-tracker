@@ -35,6 +35,9 @@ public class LinkUpdateOutboxEntity {
     @Column(name = "payload_description", nullable = false)
     private String payloadDescription;
 
+    @Column(name = "payload_author", nullable = false)
+    private String payloadAuthor;
+
     @Column(name = "payload_tg_chat_ids", nullable = false)
     private String payloadTgChatIds;
 

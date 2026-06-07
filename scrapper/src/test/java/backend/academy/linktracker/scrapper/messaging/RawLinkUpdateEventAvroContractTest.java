@@ -9,12 +9,12 @@ import java.nio.file.Path;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
-class LinkUpdateEventAvroContractTest {
+class RawLinkUpdateEventAvroContractTest {
 
-    private static final String CONTRACT_RELATIVE_PATH = "messaging/src/main/avro/LinkUpdateEvent.avsc";
+    private static final String CONTRACT_RELATIVE_PATH = "messaging/src/main/avro/RawLinkUpdateEvent.avsc";
 
     @Test
-    void linkUpdateEventSchemaExistsAndDefinesExpectedFields() throws IOException {
+    void rawLinkUpdateEventSchemaExistsAndDefinesExpectedFields() throws IOException {
         Path schemaPath = resolveSchemaPath();
         assertThat(schemaPath)
                 .as("Expected Avro schema at repository path %s", CONTRACT_RELATIVE_PATH)
@@ -22,10 +22,11 @@ class LinkUpdateEventAvroContractTest {
 
         String schema = Files.readString(schemaPath, StandardCharsets.UTF_8);
         assertPattern(schema, "\"type\"\\s*:\\s*\"record\"");
-        assertPattern(schema, "\"name\"\\s*:\\s*\"LinkUpdateEvent\"");
+        assertPattern(schema, "\"name\"\\s*:\\s*\"RawLinkUpdateEvent\"");
         assertPattern(schema, "\"name\"\\s*:\\s*\"id\"[\\s\\S]*?\"type\"\\s*:\\s*\"long\"");
         assertPattern(schema, "\"name\"\\s*:\\s*\"url\"[\\s\\S]*?\"type\"\\s*:\\s*\"string\"");
         assertPattern(schema, "\"name\"\\s*:\\s*\"description\"[\\s\\S]*?\"type\"\\s*:\\s*\"string\"");
+        assertPattern(schema, "\"name\"\\s*:\\s*\"author\"[\\s\\S]*?\"type\"\\s*:\\s*\"string\"");
         assertPattern(
                 schema,
                 "\"name\"\\s*:\\s*\"tgChatIds\"[\\s\\S]*?\"type\"\\s*:\\s*\\{[\\s\\S]*?\"type\"\\s*:\\s*\"array\"[\\s\\S]*?\"items\"\\s*:\\s*\"long\"");
