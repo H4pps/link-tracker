@@ -30,6 +30,7 @@ public class ScrapperApiExceptionHandler {
     private static final String BAD_REQUEST_DESCRIPTION = "Некорректные параметры запроса";
     private static final String NOT_FOUND_DESCRIPTION = "Ресурс не найден";
     private static final String CONFLICT_DESCRIPTION = "Конфликт состояния ресурса";
+    private static final String TOO_MANY_REQUESTS_DESCRIPTION = "Превышен лимит запросов";
     private static final String INTERNAL_ERROR_DESCRIPTION = "Внутренняя ошибка сервиса";
 
     private final ScrapperLogger scrapperLogger;
@@ -77,6 +78,20 @@ public class ScrapperApiExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleConflict(
             AlreadyExistsException exception, HttpServletRequest request) {
         return buildResponse(HttpStatus.CONFLICT, CONFLICT_DESCRIPTION, exception, request.getRequestURI());
+    }
+
+    /**
+     * Handles REST rate-limit failures.
+     *
+     * @param exception source exception
+     * @param request HTTP request metadata
+     * @return too-many-requests response
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException exception, HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DESCRIPTION, exception, request.getRequestURI());
     }
 
     /**
