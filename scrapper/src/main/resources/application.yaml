@@ -23,6 +23,11 @@ spring:
     driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.postgresql.Driver}
   liquibase:
     change-log: classpath:/migrations/db.changelog-master.yaml
+  data:
+    redis:
+      cluster:
+        nodes: ${APP_VALKEY_CLUSTER_NODES:localhost:17000,localhost:17001,localhost:17002,localhost:17003,localhost:17004,localhost:17005}
+      timeout: ${APP_VALKEY_TIMEOUT:2s}
 
 logging:
   pattern:
@@ -57,6 +62,11 @@ app:
     worker-count: ${APP_SCHEDULER_WORKER_COUNT:1}
   database:
     access-type: ${APP_DATABASE_ACCESS_TYPE:SQL}
+  cache:
+    list-links:
+      enabled: ${APP_CACHE_LIST_LINKS_ENABLED:true}
+      ttl: ${APP_CACHE_LIST_LINKS_TTL:10m}
+    client-side-enabled: ${APP_CACHE_CLIENT_SIDE_ENABLED:true}
   stackoverflow:
     base-url: ${APP_STACKOVERFLOW_BASE_URL:https://api.stackexchange.com}
     key: ${STACKOVERFLOW_KEY} # Use env variable. DO NOT KEEP TOKEN HERE
