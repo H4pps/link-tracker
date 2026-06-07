@@ -7,8 +7,11 @@ import backend.academy.linktracker.scrapper.application.external.link.github.Git
 import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
 import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdateType;
 import backend.academy.linktracker.scrapper.infrastructure.external.dto.github.GithubIssueItemResponse;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.HttpResiliencePredicates;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.ResilientCallExecutor;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.GithubProperties;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
 import java.time.Instant;
 import java.util.Optional;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +27,8 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
 
     private final RestClient restClient;
     private final String token;
+    private final ResilienceProperties resilienceProperties;
+    private final ResilientCallExecutor resilientCallExecutor;
     private final ScrapperLogger scrapperLogger;
 
     /**
@@ -34,9 +39,14 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
      * @param scrapperLogger structured logger
      */
     public GithubExternalSourceReader(
-            RestClient.Builder restClientBuilder, GithubProperties githubProperties, ScrapperLogger scrapperLogger) {
+            RestClient.Builder restClientBuilder,
+            GithubProperties githubProperties,
+            ResilienceProperties resilienceProperties,
+            ScrapperLogger scrapperLogger) {
         this.scrapperLogger = scrapperLogger;
         this.token = githubProperties.getToken();
+        this.resilienceProperties = resilienceProperties;
+        this.resilientCallExecutor = new ResilientCallExecutor(resilienceProperties);
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(githubProperties.getConnectTimeout());
         requestFactory.setReadTimeout(githubProperties.getReadTimeout());
@@ -61,16 +71,20 @@ public class GithubExternalSourceReader implements ExternalSourceReader {
     public Optional<ExternalUpdate> fetchLatestUpdate(LinkSource source) {
         GithubLinkSource githubSource = cast(source);
         try {
-            GithubIssueItemResponse[] response = restClient
-                    .get()
-                    .uri(
-                            "/repos/{owner}/{repo}/issues?sort=created&direction=desc&per_page=1&state=all",
-                            githubSource.owner(),
-                            githubSource.repository())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                    .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
-                    .retrieve()
-                    .body(GithubIssueItemResponse[].class);
+            GithubIssueItemResponse[] response = resilientCallExecutor.execute(
+                    "github-http",
+                    () -> restClient
+                            .get()
+                            .uri(
+                                    "/repos/{owner}/{repo}/issues?sort=created&direction=desc&per_page=1&state=all",
+                                    githubSource.owner(),
+                                    githubSource.repository())
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                            .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
+                            .retrieve()
+                            .body(GithubIssueItemResponse[].class),
+                    throwable -> HttpResiliencePredicates.isRetryableFailure(throwable, resilienceProperties),
+                    throwable -> HttpResiliencePredicates.isCircuitBreakerFailure(throwable, resilienceProperties));
             if (response == null || response.length == 0) {
                 return Optional.empty();
             }

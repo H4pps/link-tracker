@@ -10,6 +10,8 @@ import backend.academy.linktracker.scrapper.api.rest.controllers.LinkController;
 import backend.academy.linktracker.scrapper.api.rest.controllers.TgChatController;
 import backend.academy.linktracker.scrapper.api.rest.errors.ScrapperApiExceptionHandler;
 import backend.academy.linktracker.scrapper.api.rest.interceptors.ScrapperApiLoggingInterceptor;
+import backend.academy.linktracker.scrapper.api.rest.ratelimit.IpRateLimitInterceptor;
+import backend.academy.linktracker.scrapper.api.rest.ratelimit.Resilience4jIpRateLimiter;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatRepository;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase;
 import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCaseImpl;
@@ -21,6 +23,8 @@ import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMem
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
+import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,23 +45,7 @@ class ScrapperApiControllerWebMvcTest {
 
     @BeforeEach
     void setUp() {
-        InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
-        ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
-        ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
-        NoOpListLinksCache listLinksCache = new NoOpListLinksCache();
-        ScrapperChatUseCase scrapperChatUseCase =
-                new ScrapperChatUseCaseImpl(chatRepository, listLinksCache, scrapperLogger);
-        ScrapperLinkUseCase scrapperLinkUseCase =
-                new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, listLinksCache, scrapperLogger);
-
-        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
-        validator.afterPropertiesSet();
-        mockMvc = MockMvcBuilders.standaloneSetup(
-                        new TgChatController(scrapperChatUseCase), new LinkController(scrapperLinkUseCase))
-                .addInterceptors(new ScrapperApiLoggingInterceptor(scrapperLogger))
-                .setControllerAdvice(new ScrapperApiExceptionHandler(scrapperLogger))
-                .setValidator(validator)
-                .build();
+        mockMvc = createMockMvc(rateLimitProperties(1_000, Duration.ofMinutes(1), Duration.ZERO));
     }
 
     @Test
@@ -75,6 +63,53 @@ class ScrapperApiControllerWebMvcTest {
         mockMvc.perform(delete("/tg-chat/-1"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
+    }
+
+    @Test
+    void scrapperRestRateLimitReturnsTooManyRequests() throws Exception {
+        MockMvc limitedMockMvc = createMockMvc(rateLimitProperties(1, Duration.ofMinutes(1), Duration.ZERO));
+
+        limitedMockMvc
+                .perform(post("/tg-chat/1").header("X-Forwarded-For", "203.0.113.10, 198.51.100.2"))
+                .andExpect(status().isOk());
+        limitedMockMvc
+                .perform(get("/links").header("Tg-Chat-Id", 1).header("X-Forwarded-For", "203.0.113.10, 198.51.100.2"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("TOO_MANY_REQUESTS"));
+        limitedMockMvc
+                .perform(get("/links").header("Tg-Chat-Id", 1).header("X-Forwarded-For", "203.0.113.11, 198.51.100.2"))
+                .andExpect(status().isOk());
+    }
+
+    private MockMvc createMockMvc(ResilienceProperties resilienceProperties) {
+        InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
+        ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
+        ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
+        NoOpListLinksCache listLinksCache = new NoOpListLinksCache();
+        ScrapperChatUseCase scrapperChatUseCase =
+                new ScrapperChatUseCaseImpl(chatRepository, listLinksCache, scrapperLogger);
+        ScrapperLinkUseCase scrapperLinkUseCase =
+                new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, listLinksCache, scrapperLogger);
+
+        LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
+        validator.afterPropertiesSet();
+        mockMvc = MockMvcBuilders.standaloneSetup(
+                        new TgChatController(scrapperChatUseCase), new LinkController(scrapperLinkUseCase))
+                .addInterceptors(new ScrapperApiLoggingInterceptor(scrapperLogger))
+                .addInterceptors(new IpRateLimitInterceptor(new Resilience4jIpRateLimiter(resilienceProperties)))
+                .setControllerAdvice(new ScrapperApiExceptionHandler(scrapperLogger))
+                .setValidator(validator)
+                .build();
+        return mockMvc;
+    }
+
+    private ResilienceProperties rateLimitProperties(
+            int limitForPeriod, Duration limitRefreshPeriod, Duration timeoutDuration) {
+        ResilienceProperties properties = new ResilienceProperties();
+        properties.rateLimit().setLimitForPeriod(limitForPeriod);
+        properties.rateLimit().setLimitRefreshPeriod(limitRefreshPeriod);
+        properties.rateLimit().setTimeoutDuration(timeoutDuration);
+        return properties;
     }
 
     @Test

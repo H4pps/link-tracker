@@ -12,10 +12,12 @@ import backend.academy.linktracker.scrapper.application.external.link.stackoverf
 import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdate;
 import backend.academy.linktracker.scrapper.application.external.update.ExternalUpdateType;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
 import backend.academy.linktracker.scrapper.properties.StackoverflowProperties;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import java.time.Duration;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +40,8 @@ class StackoverflowExternalSourceReaderTest {
         properties.setAccessToken("access-token");
         properties.setConnectTimeout(Duration.ofSeconds(1));
         properties.setReadTimeout(Duration.ofSeconds(1));
-        reader = new StackoverflowExternalSourceReader(RestClient.builder(), properties, new ScrapperLogger());
+        reader = new StackoverflowExternalSourceReader(
+                RestClient.builder(), properties, defaultResilienceProperties(), new ScrapperLogger());
     }
 
     @AfterEach
@@ -146,6 +149,24 @@ class StackoverflowExternalSourceReaderTest {
                 .isInstanceOf(ExternalSourceException.class);
     }
 
+    @Test
+    void delayedResponseFailsByTimeoutBeforeServerDelayCompletes() {
+        reader = createReader(Duration.ofMillis(100), resilienceProperties(1, 1));
+        stubFor(get(urlPathEqualTo("/2.3/questions/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withFixedDelay(2_000)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"items\":[{\"title\":\"slow question\"}]}")));
+
+        long startedAt = System.nanoTime();
+        assertThatThrownBy(() -> reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isInstanceOf(ExternalSourceException.class);
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+        assertThat(elapsed).isLessThan(Duration.ofMillis(1_500));
+    }
+
     private void stubQuestionTitle(String title) {
         stubFor(get(urlPathEqualTo("/2.3/questions/123"))
                 .willReturn(aResponse()
@@ -170,5 +191,31 @@ class StackoverflowExternalSourceReaderTest {
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
                         .withBody(body)));
+    }
+
+    private StackoverflowExternalSourceReader createReader(
+            Duration readTimeout, ResilienceProperties resilienceProperties) {
+        StackoverflowProperties properties = new StackoverflowProperties();
+        properties.setBaseUrl(wireMockServer.baseUrl());
+        properties.setKey("key");
+        properties.setAccessToken("access-token");
+        properties.setConnectTimeout(Duration.ofSeconds(1));
+        properties.setReadTimeout(readTimeout);
+        return new StackoverflowExternalSourceReader(
+                RestClient.builder(), properties, resilienceProperties, new ScrapperLogger());
+    }
+
+    private ResilienceProperties defaultResilienceProperties() {
+        return resilienceProperties(3, 1);
+    }
+
+    private ResilienceProperties resilienceProperties(int maxAttempts, long backoffMillis) {
+        ResilienceProperties properties = new ResilienceProperties();
+        properties.retry().setMaxAttempts(maxAttempts);
+        properties.retry().setBackoff(Duration.ofMillis(backoffMillis));
+        properties.retry().setRetryableHttpStatuses(Set.of(500, 502, 503, 504));
+        properties.circuitBreaker().setMinimumNumberOfCalls(10);
+        properties.circuitBreaker().setSlidingWindowSize(10);
+        return properties;
     }
 }

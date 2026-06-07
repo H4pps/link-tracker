@@ -8,6 +8,7 @@ import backend.academy.linktracker.grpc.LinkUpdateRequest;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateNotification;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
 import backend.academy.linktracker.scrapper.properties.BotProperties;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
@@ -15,6 +16,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -75,6 +77,28 @@ class GrpcBotNotificationSenderTest {
         assertThat(sent).isFalse();
     }
 
+    @Test
+    void retriesGrpcFailureUntilBotAcceptsNotification() throws IOException {
+        AtomicInteger attempts = new AtomicInteger();
+        server = startServer(new BotServiceGrpc.BotServiceImplBase() {
+            @Override
+            public void sendUpdate(LinkUpdateRequest request, StreamObserver<Ack> responseObserver) {
+                if (attempts.incrementAndGet() < 3) {
+                    responseObserver.onError(Status.UNAVAILABLE.asRuntimeException());
+                    return;
+                }
+                responseObserver.onNext(Ack.newBuilder().setAccepted(true).build());
+                responseObserver.onCompleted();
+            }
+        });
+        sender = createSender(server.getPort());
+
+        boolean sent = sender.send(new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L)));
+
+        assertThat(sent).isTrue();
+        assertThat(attempts).hasValue(3);
+    }
+
     private Server startServer(BotServiceGrpc.BotServiceImplBase service) throws IOException {
         Server localServer = ServerBuilder.forPort(0).addService(service).build();
         localServer.start();
@@ -86,6 +110,11 @@ class GrpcBotNotificationSenderTest {
         properties.setGrpcHost("localhost");
         properties.setGrpcPort(port);
         properties.setGrpcDeadline(Duration.ofSeconds(1));
-        return new GrpcBotNotificationSender(properties, new ScrapperLogger());
+        ResilienceProperties resilienceProperties = new ResilienceProperties();
+        resilienceProperties.retry().setMaxAttempts(3);
+        resilienceProperties.retry().setBackoff(Duration.ofMillis(1));
+        resilienceProperties.circuitBreaker().setMinimumNumberOfCalls(10);
+        resilienceProperties.circuitBreaker().setSlidingWindowSize(10);
+        return new GrpcBotNotificationSender(properties, resilienceProperties, new ScrapperLogger());
     }
 }

@@ -26,6 +26,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class BotApiExceptionHandler {
 
     private static final String BAD_REQUEST_DESCRIPTION = "Некорректные параметры запроса";
+    private static final String TOO_MANY_REQUESTS_DESCRIPTION = "Превышен лимит запросов";
     private static final String INTERNAL_ERROR_DESCRIPTION = "Внутренняя ошибка сервиса";
 
     private final BotLogger botLogger;
@@ -48,6 +49,20 @@ public class BotApiExceptionHandler {
     })
     public ResponseEntity<ApiErrorResponse> handleBadRequest(Exception exception, HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, BAD_REQUEST_DESCRIPTION, exception, request.getRequestURI());
+    }
+
+    /**
+     * Handles REST rate-limit failures.
+     *
+     * @param exception source exception
+     * @param request HTTP request metadata
+     * @return too-many-requests response
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException exception, HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DESCRIPTION, exception, request.getRequestURI());
     }
 
     /**

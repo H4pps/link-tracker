@@ -10,7 +10,10 @@ import backend.academy.linktracker.scrapper.infrastructure.external.dto.stackove
 import backend.academy.linktracker.scrapper.infrastructure.external.dto.stackoverflow.StackoverflowQuestionsResponse;
 import backend.academy.linktracker.scrapper.infrastructure.external.dto.stackoverflow.StackoverflowUpdateItem;
 import backend.academy.linktracker.scrapper.infrastructure.external.dto.stackoverflow.StackoverflowUpdatesResponse;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.HttpResiliencePredicates;
+import backend.academy.linktracker.scrapper.infrastructure.resilience.ResilientCallExecutor;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
+import backend.academy.linktracker.scrapper.properties.ResilienceProperties;
 import backend.academy.linktracker.scrapper.properties.StackoverflowProperties;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,6 +30,8 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
     private final RestClient restClient;
     private final String key;
     private final String accessToken;
+    private final ResilienceProperties resilienceProperties;
+    private final ResilientCallExecutor resilientCallExecutor;
     private final ScrapperLogger scrapperLogger;
 
     /**
@@ -39,10 +44,13 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
     public StackoverflowExternalSourceReader(
             RestClient.Builder restClientBuilder,
             StackoverflowProperties stackoverflowProperties,
+            ResilienceProperties resilienceProperties,
             ScrapperLogger scrapperLogger) {
         this.scrapperLogger = scrapperLogger;
         this.key = stackoverflowProperties.getKey();
         this.accessToken = stackoverflowProperties.getAccessToken();
+        this.resilienceProperties = resilienceProperties;
+        this.resilientCallExecutor = new ResilientCallExecutor(resilienceProperties);
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(stackoverflowProperties.getConnectTimeout());
         requestFactory.setReadTimeout(stackoverflowProperties.getReadTimeout());
@@ -93,15 +101,19 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
     }
 
     private String fetchQuestionTitle(long questionId) {
-        StackoverflowQuestionsResponse response = restClient
-                .get()
-                .uri(
-                        "/2.3/questions/{id}?site=stackoverflow&key={key}&access_token={accessToken}",
-                        questionId,
-                        key,
-                        accessToken)
-                .retrieve()
-                .body(StackoverflowQuestionsResponse.class);
+        StackoverflowQuestionsResponse response = resilientCallExecutor.execute(
+                "stackoverflow-http",
+                () -> restClient
+                        .get()
+                        .uri(
+                                "/2.3/questions/{id}?site=stackoverflow&key={key}&access_token={accessToken}",
+                                questionId,
+                                key,
+                                accessToken)
+                        .retrieve()
+                        .body(StackoverflowQuestionsResponse.class),
+                throwable -> HttpResiliencePredicates.isRetryableFailure(throwable, resilienceProperties),
+                throwable -> HttpResiliencePredicates.isCircuitBreakerFailure(throwable, resilienceProperties));
         if (response == null || response.items() == null || response.items().isEmpty()) {
             throw new ExternalSourceException("StackOverflow question response has no items", null);
         }
@@ -114,30 +126,38 @@ public class StackoverflowExternalSourceReader implements ExternalSourceReader {
     }
 
     private StackoverflowUpdateItem fetchLatestAnswer(long questionId) {
-        StackoverflowUpdatesResponse response = restClient
-                .get()
-                .uri(
-                        "/2.3/questions/{id}/answers?site=stackoverflow&sort=creation&order=desc&pagesize=1"
-                                + "&filter=withbody&key={key}&access_token={accessToken}",
-                        questionId,
-                        key,
-                        accessToken)
-                .retrieve()
-                .body(StackoverflowUpdatesResponse.class);
+        StackoverflowUpdatesResponse response = resilientCallExecutor.execute(
+                "stackoverflow-http",
+                () -> restClient
+                        .get()
+                        .uri(
+                                "/2.3/questions/{id}/answers?site=stackoverflow&sort=creation&order=desc&pagesize=1"
+                                        + "&filter=withbody&key={key}&access_token={accessToken}",
+                                questionId,
+                                key,
+                                accessToken)
+                        .retrieve()
+                        .body(StackoverflowUpdatesResponse.class),
+                throwable -> HttpResiliencePredicates.isRetryableFailure(throwable, resilienceProperties),
+                throwable -> HttpResiliencePredicates.isCircuitBreakerFailure(throwable, resilienceProperties));
         return readLatestUpdateItem(response);
     }
 
     private StackoverflowUpdateItem fetchLatestComment(long questionId) {
-        StackoverflowUpdatesResponse response = restClient
-                .get()
-                .uri(
-                        "/2.3/questions/{id}/comments?site=stackoverflow&sort=creation&order=desc&pagesize=1"
-                                + "&filter=withbody&key={key}&access_token={accessToken}",
-                        questionId,
-                        key,
-                        accessToken)
-                .retrieve()
-                .body(StackoverflowUpdatesResponse.class);
+        StackoverflowUpdatesResponse response = resilientCallExecutor.execute(
+                "stackoverflow-http",
+                () -> restClient
+                        .get()
+                        .uri(
+                                "/2.3/questions/{id}/comments?site=stackoverflow&sort=creation&order=desc&pagesize=1"
+                                        + "&filter=withbody&key={key}&access_token={accessToken}",
+                                questionId,
+                                key,
+                                accessToken)
+                        .retrieve()
+                        .body(StackoverflowUpdatesResponse.class),
+                throwable -> HttpResiliencePredicates.isRetryableFailure(throwable, resilienceProperties),
+                throwable -> HttpResiliencePredicates.isCircuitBreakerFailure(throwable, resilienceProperties));
         return readLatestUpdateItem(response);
     }
 

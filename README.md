@@ -79,6 +79,23 @@ APP_DATABASE_ACCESS_TYPE=SQL
 и того же сообщения не приводит к дублю уведомления пользователю. Для этого Bot тоже подключается к PostgreSQL
 (`SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`).
 
+8. При необходимости настройте отказоустойчивость внешних вызовов и REST rate limiting:
+
+- `APP_RESILIENCE_RETRY_MAX_ATTEMPTS` — количество попыток retry, по умолчанию `3`;
+- `APP_RESILIENCE_RETRY_BACKOFF` — constant backoff между попытками, по умолчанию `200ms`;
+- `APP_RESILIENCE_RETRY_RETRYABLE_HTTP_STATUSES` — retryable HTTP-статусы, по умолчанию `500,502,503,504`;
+- `APP_RESILIENCE_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD` — порог ошибок Circuit Breaker, по умолчанию `50`;
+- `APP_RESILIENCE_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE` — размер sliding window, по умолчанию `10`;
+- `APP_RESILIENCE_CIRCUIT_BREAKER_MINIMUM_NUMBER_OF_CALLS` — минимальное число вызовов для расчёта ошибок, по умолчанию `5`;
+- `APP_RESILIENCE_CIRCUIT_BREAKER_PERMITTED_CALLS_IN_HALF_OPEN_STATE` — число пробных вызовов в HALF_OPEN, по умолчанию `2`;
+- `APP_RESILIENCE_CIRCUIT_BREAKER_OPEN_STATE_DURATION` — время OPEN-состояния, по умолчанию `5s`;
+- `APP_RESILIENCE_RATE_LIMIT_LIMIT_FOR_PERIOD` — число разрешённых запросов на IP за период, по умолчанию `60`;
+- `APP_RESILIENCE_RATE_LIMIT_LIMIT_REFRESH_PERIOD` — период обновления лимита, по умолчанию `1m`;
+- `APP_RESILIENCE_RATE_LIMIT_TIMEOUT_DURATION` — ожидание свободного разрешения Resilience4J RateLimiter, по умолчанию `0ms`.
+
+Resilience4J-backed rate limiting применяется только к публичным REST endpoint'ам: Scrapper `/links`, `/tg-chat/**` и Bot `/updates`.
+IP берётся из первого значения `X-Forwarded-For`, если заголовок есть, иначе из `remoteAddr`.
+
 Корневой `.env.example` рассчитан на запуск через Docker Compose, поэтому межсервисные адреса используют имена контейнеров: `postgres`, `scrapper`, `bot`.
 
 ## Запуск через Docker Compose
