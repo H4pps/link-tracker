@@ -16,6 +16,7 @@ import backend.academy.linktracker.scrapper.application.chat.ScrapperChatUseCase
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCase;
 import backend.academy.linktracker.scrapper.application.link.ScrapperLinkUseCaseImpl;
+import backend.academy.linktracker.scrapper.infrastructure.cache.NoOpListLinksCache;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperLinkRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
@@ -43,9 +44,11 @@ class ScrapperApiControllerWebMvcTest {
         InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
         ScrapperChatRepository chatRepository = new InMemoryScrapperChatRepository(storage);
         ScrapperLinkRepository linkRepository = new InMemoryScrapperLinkRepository(storage);
-        ScrapperChatUseCase scrapperChatUseCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
+        NoOpListLinksCache listLinksCache = new NoOpListLinksCache();
+        ScrapperChatUseCase scrapperChatUseCase =
+                new ScrapperChatUseCaseImpl(chatRepository, listLinksCache, scrapperLogger);
         ScrapperLinkUseCase scrapperLinkUseCase =
-                new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, scrapperLogger);
+                new ScrapperLinkUseCaseImpl(chatRepository, linkRepository, listLinksCache, scrapperLogger);
 
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();

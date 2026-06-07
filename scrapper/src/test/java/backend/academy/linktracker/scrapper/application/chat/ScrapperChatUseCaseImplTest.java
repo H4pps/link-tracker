@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import backend.academy.linktracker.scrapper.domain.exception.AlreadyExistsException;
 import backend.academy.linktracker.scrapper.domain.exception.NotFoundException;
+import backend.academy.linktracker.scrapper.infrastructure.cache.NoOpListLinksCache;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperChatRepository;
 import backend.academy.linktracker.scrapper.infrastructure.memory.inmemory.InMemoryScrapperStorage;
 import backend.academy.linktracker.scrapper.logging.ScrapperLogger;
@@ -28,7 +29,7 @@ class ScrapperChatUseCaseImplTest {
     void setUp() {
         InMemoryScrapperStorage storage = new InMemoryScrapperStorage();
         chatRepository = new InMemoryScrapperChatRepository(storage);
-        useCase = new ScrapperChatUseCaseImpl(chatRepository, scrapperLogger);
+        useCase = new ScrapperChatUseCaseImpl(chatRepository, new NoOpListLinksCache(), scrapperLogger);
     }
 
     @Test
