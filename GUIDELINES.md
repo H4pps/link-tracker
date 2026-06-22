@@ -1,44 +1,44 @@
-# Инструкция по запуску приложения
+# Application Run Guide
 
-## Требования
+## Requirements
 
-- Docker + Docker Compose v2 (`docker compose`)
-- или JDK 25 для запуска через Maven
+- Docker with Docker Compose v2 (`docker compose`)
+- JDK 25 for Maven-based runs
 
-## Запуск через Docker (рекомендуется)
+## Run With Docker
 
-Из корня репозитория:
+From the repository root:
 
 ```bash
 docker compose up --build -d
 ```
 
-Логи:
+Show logs:
 
 ```bash
 docker compose logs -f
 ```
 
-Остановка:
+Stop services:
 
 ```bash
 docker compose down
 ```
 
-Порты сервисов:
+Service ports:
 
 - `bot`: `8080`
 - `scrapper`: `8081`
 
-## Запуск через Maven
+## Run With Maven
 
-1. Запустите `scrapper`:
+1. Start `scrapper`:
 
 ```bash
 ./mvnw -pl scrapper -am spring-boot:run
 ```
 
-2. В отдельном терминале запустите `bot` с отключенным polling:
+2. In a separate terminal, start `bot` with polling disabled:
 
 ```bash
 TELEGRAM_TOKEN=dummy \
@@ -47,12 +47,12 @@ APP_TELEGRAM_URL=http://127.0.0.1:65535/bot \
 ./mvnw -pl bot -am spring-boot:run
 ```
 
-## Проверка интеграционных тестов
+## Integration Tests
 
-Интеграционные (container E2E) тесты запускаются отдельным профилем:
+Container-based end-to-end integration tests run through a separate profile:
 
 ```bash
 ./mvnw -pl bot,scrapper -am -Pe2e verify
 ```
 
-Примечание: для этого запуска должен быть доступен Docker daemon.
+Docker daemon must be available for this command.

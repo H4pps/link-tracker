@@ -10,7 +10,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>backend.academy.link-tracker</groupId>
+    <groupId>com.linktracker</groupId>
     <artifactId>parent</artifactId>
     <version>${revision}</version>
     <packaging>pom</packaging>

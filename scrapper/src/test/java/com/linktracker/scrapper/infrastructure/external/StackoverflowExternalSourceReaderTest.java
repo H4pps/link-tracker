@@ -1,0 +1,221 @@
+package com.linktracker.scrapper.infrastructure.external;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.linktracker.scrapper.application.external.ExternalSourceException;
+import com.linktracker.scrapper.application.external.link.stackoverflow.StackoverflowQuestionLinkSource;
+import com.linktracker.scrapper.application.external.update.ExternalUpdate;
+import com.linktracker.scrapper.application.external.update.ExternalUpdateType;
+import com.linktracker.scrapper.logging.ScrapperLogger;
+import com.linktracker.scrapper.properties.ResilienceProperties;
+import com.linktracker.scrapper.properties.StackoverflowProperties;
+import java.time.Duration;
+import java.util.Set;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+class StackoverflowExternalSourceReaderTest {
+
+    private WireMockServer wireMockServer;
+    private StackoverflowExternalSourceReader reader;
+
+    @BeforeEach
+    void setUp() {
+        wireMockServer = new WireMockServer(WireMockConfiguration.options().dynamicPort());
+        wireMockServer.start();
+        com.github.tomakehurst.wiremock.client.WireMock.configureFor("localhost", wireMockServer.port());
+
+        StackoverflowProperties properties = new StackoverflowProperties();
+        properties.setBaseUrl(wireMockServer.baseUrl());
+        properties.setKey("key");
+        properties.setAccessToken("access-token");
+        properties.setConnectTimeout(Duration.ofSeconds(1));
+        properties.setReadTimeout(Duration.ofSeconds(1));
+        reader = new StackoverflowExternalSourceReader(
+                RestClient.builder(), properties, defaultResilienceProperties(), new ScrapperLogger());
+    }
+
+    @AfterEach
+    void tearDown() {
+        wireMockServer.stop();
+    }
+
+    @Test
+    void mapsLatestAnswerWhenAnswerIsNewer() {
+        stubQuestionTitle("How to paginate scheduler link checks?");
+        stubAnswers("""
+                {
+                  "items":[
+                    {"creation_date":1704067400,"body":"Answer body","owner":{"display_name":"alice"}}
+                  ]
+                }
+                """);
+        stubComments("""
+                {
+                  "items":[
+                    {"creation_date":1704067300,"body":"Comment body","owner":{"display_name":"bob"}}
+                  ]
+                }
+                """);
+
+        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123))
+                .orElseThrow();
+
+        assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_ANSWER);
+        assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");
+        assertThat(update.author()).isEqualTo("alice");
+        assertThat(update.preview()).isEqualTo("Answer body");
+        assertThat(update.createdAt().toString()).isEqualTo("2024-01-01T00:03:20Z");
+    }
+
+    @Test
+    void mapsLatestCommentWhenCommentIsNewer() {
+        stubQuestionTitle("How to paginate scheduler link checks?");
+        stubAnswers("""
+                {
+                  "items":[
+                    {"creation_date":1704067300,"body":"Answer body","owner":{"display_name":"alice"}}
+                  ]
+                }
+                """);
+        stubComments("""
+                {
+                  "items":[
+                    {"creation_date":1704067600,"body":"Comment body","owner":{"display_name":"bob"}}
+                  ]
+                }
+                """);
+
+        ExternalUpdate update = reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123))
+                .orElseThrow();
+
+        assertThat(update.type()).isEqualTo(ExternalUpdateType.STACKOVERFLOW_COMMENT);
+        assertThat(update.title()).isEqualTo("How to paginate scheduler link checks?");
+        assertThat(update.author()).isEqualTo("bob");
+        assertThat(update.preview()).isEqualTo("Comment body");
+        assertThat(update.createdAt().toString()).isEqualTo("2024-01-01T00:06:40Z");
+    }
+
+    @Test
+    void returnsEmptyWhenQuestionHasNoAnswersOrComments() {
+        stubQuestionTitle("How to paginate scheduler link checks?");
+        stubAnswers("{\"items\":[]}");
+        stubComments("{\"items\":[]}");
+
+        assertThat(reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isEmpty();
+    }
+
+    @Test
+    void throwsOnMalformedPayload() {
+        stubFor(get(urlPathEqualTo("/2.3/questions/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"items\":[{}]}")));
+        stubAnswers("""
+                {
+                  "items":[
+                    {"creation_date":1704067300,"body":"Answer body","owner":{"display_name":"alice"}}
+                  ]
+                }
+                """);
+        stubComments("""
+                {
+                  "items":[
+                    {"creation_date":1704067600,"body":"Comment body","owner":{"display_name":"bob"}}
+                  ]
+                }
+                """);
+
+        assertThatThrownBy(() -> reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isInstanceOf(ExternalSourceException.class);
+    }
+
+    @Test
+    void throwsOnNon2xx() {
+        stubFor(get(urlPathEqualTo("/2.3/questions/123")).willReturn(aResponse().withStatus(500)));
+
+        assertThatThrownBy(() -> reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isInstanceOf(ExternalSourceException.class);
+    }
+
+    @Test
+    void delayedResponseFailsByTimeoutBeforeServerDelayCompletes() {
+        reader = createReader(Duration.ofMillis(100), resilienceProperties(1, 1));
+        stubFor(get(urlPathEqualTo("/2.3/questions/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withFixedDelay(2_000)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"items\":[{\"title\":\"slow question\"}]}")));
+
+        long startedAt = System.nanoTime();
+        assertThatThrownBy(() -> reader.fetchLatestUpdate(new StackoverflowQuestionLinkSource(123)))
+                .isInstanceOf(ExternalSourceException.class);
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+        assertThat(elapsed).isLessThan(Duration.ofMillis(1_500));
+    }
+
+    private void stubQuestionTitle(String title) {
+        stubFor(get(urlPathEqualTo("/2.3/questions/123"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"items":[{"title":"%s"}]}
+                                """.formatted(title))));
+    }
+
+    private void stubAnswers(String body) {
+        stubFor(get(urlPathEqualTo("/2.3/questions/123/answers"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+    }
+
+    private void stubComments(String body) {
+        stubFor(get(urlPathEqualTo("/2.3/questions/123/comments"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(body)));
+    }
+
+    private StackoverflowExternalSourceReader createReader(
+            Duration readTimeout, ResilienceProperties resilienceProperties) {
+        StackoverflowProperties properties = new StackoverflowProperties();
+        properties.setBaseUrl(wireMockServer.baseUrl());
+        properties.setKey("key");
+        properties.setAccessToken("access-token");
+        properties.setConnectTimeout(Duration.ofSeconds(1));
+        properties.setReadTimeout(readTimeout);
+        return new StackoverflowExternalSourceReader(
+                RestClient.builder(), properties, resilienceProperties, new ScrapperLogger());
+    }
+
+    private ResilienceProperties defaultResilienceProperties() {
+        return resilienceProperties(3, 1);
+    }
+
+    private ResilienceProperties resilienceProperties(int maxAttempts, long backoffMillis) {
+        ResilienceProperties properties = new ResilienceProperties();
+        properties.retry().setMaxAttempts(maxAttempts);
+        properties.retry().setBackoff(Duration.ofMillis(backoffMillis));
+        properties.retry().setRetryableHttpStatuses(Set.of(500, 502, 503, 504));
+        properties.circuitBreaker().setMinimumNumberOfCalls(10);
+        properties.circuitBreaker().setSlidingWindowSize(10);
+        return properties;
+    }
+}

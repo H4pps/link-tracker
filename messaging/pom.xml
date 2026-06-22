@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>backend.academy.link-tracker</groupId>
+        <groupId>com.linktracker</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
     </parent>

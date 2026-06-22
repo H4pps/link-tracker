@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package linktracker.grpc;
 
-option java_package = "backend.academy.linktracker.grpc";
+option java_package = "com.linktracker.grpc";
 option java_multiple_files = true;
 option java_outer_classname = "LinkTrackerGrpcProto";
 

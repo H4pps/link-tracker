@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>backend.academy.link-tracker</groupId>
+        <groupId>com.linktracker</groupId>
         <artifactId>parent</artifactId>
         <version>${revision}</version>
     </parent>
@@ -12,17 +12,17 @@
 
     <dependencies>
         <dependency>
-            <groupId>backend.academy.link-tracker</groupId>
+            <groupId>com.linktracker</groupId>
             <artifactId>ai-agent</artifactId>
             <version>${revision}</version>
         </dependency>
         <dependency>
-            <groupId>backend.academy.link-tracker</groupId>
+            <groupId>com.linktracker</groupId>
             <artifactId>bot</artifactId>
             <version>${revision}</version>
         </dependency>
         <dependency>
-            <groupId>backend.academy.link-tracker</groupId>
+            <groupId>com.linktracker</groupId>
             <artifactId>scrapper</artifactId>
             <version>${revision}</version>
         </dependency>

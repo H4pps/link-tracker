@@ -1,3 +1,10 @@
+.codex
+.claude
+.gitignore
+.playwright-mcp
+plans/*
+AGENTS.md
+
 # Package Files #
 *.jar
 *.war

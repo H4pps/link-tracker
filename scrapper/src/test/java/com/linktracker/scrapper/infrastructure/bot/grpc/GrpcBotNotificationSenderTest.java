@@ -1,0 +1,120 @@
+package com.linktracker.scrapper.infrastructure.bot.grpc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.linktracker.grpc.Ack;
+import com.linktracker.grpc.BotServiceGrpc;
+import com.linktracker.grpc.LinkUpdateRequest;
+import com.linktracker.scrapper.application.update.LinkUpdateNotification;
+import com.linktracker.scrapper.logging.ScrapperLogger;
+import com.linktracker.scrapper.properties.BotProperties;
+import com.linktracker.scrapper.properties.ResilienceProperties;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+class GrpcBotNotificationSenderTest {
+
+    private Server server;
+    private GrpcBotNotificationSender sender;
+
+    @AfterEach
+    void tearDown() {
+        if (sender != null) {
+            sender.shutdown();
+        }
+        if (server != null) {
+            server.shutdownNow();
+        }
+    }
+
+    @Test
+    void returnsTrueWhenBotAcceptsNotification() throws IOException {
+        AtomicReference<LinkUpdateRequest> capturedRequest = new AtomicReference<>();
+        server = startServer(new BotServiceGrpc.BotServiceImplBase() {
+            @Override
+            public void sendUpdate(LinkUpdateRequest request, StreamObserver<Ack> responseObserver) {
+                capturedRequest.set(request);
+                responseObserver.onNext(Ack.newBuilder().setAccepted(true).build());
+                responseObserver.onCompleted();
+            }
+        });
+        sender = createSender(server.getPort());
+
+        LinkUpdateNotification notification =
+                new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L, 20L));
+
+        boolean sent = sender.send(notification);
+
+        assertThat(sent).isTrue();
+        assertThat(capturedRequest.get()).isNotNull();
+        assertThat(capturedRequest.get().getId()).isEqualTo(notification.id());
+        assertThat(capturedRequest.get().getUrl()).isEqualTo(notification.url());
+        assertThat(capturedRequest.get().getDescription()).isEqualTo(notification.description());
+        assertThat(capturedRequest.get().getTgChatIdsList()).containsExactlyElementsOf(notification.tgChatIds());
+    }
+
+    @Test
+    void returnsFalseOnGrpcFailure() throws IOException {
+        server = startServer(new BotServiceGrpc.BotServiceImplBase() {
+            @Override
+            public void sendUpdate(LinkUpdateRequest request, StreamObserver<Ack> responseObserver) {
+                responseObserver.onError(Status.UNAVAILABLE.asRuntimeException());
+            }
+        });
+        sender = createSender(server.getPort());
+
+        boolean sent = sender.send(new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L)));
+
+        assertThat(sent).isFalse();
+    }
+
+    @Test
+    void retriesGrpcFailureUntilBotAcceptsNotification() throws IOException {
+        AtomicInteger attempts = new AtomicInteger();
+        server = startServer(new BotServiceGrpc.BotServiceImplBase() {
+            @Override
+            public void sendUpdate(LinkUpdateRequest request, StreamObserver<Ack> responseObserver) {
+                if (attempts.incrementAndGet() < 3) {
+                    responseObserver.onError(Status.UNAVAILABLE.asRuntimeException());
+                    return;
+                }
+                responseObserver.onNext(Ack.newBuilder().setAccepted(true).build());
+                responseObserver.onCompleted();
+            }
+        });
+        sender = createSender(server.getPort());
+
+        boolean sent = sender.send(new LinkUpdateNotification(1L, "https://github.com/a/b", "changed", List.of(10L)));
+
+        assertThat(sent).isTrue();
+        assertThat(attempts).hasValue(3);
+    }
+
+    private Server startServer(BotServiceGrpc.BotServiceImplBase service) throws IOException {
+        Server localServer = ServerBuilder.forPort(0).addService(service).build();
+        localServer.start();
+        return localServer;
+    }
+
+    private GrpcBotNotificationSender createSender(int port) {
+        BotProperties properties = new BotProperties();
+        properties.setGrpcHost("localhost");
+        properties.setGrpcPort(port);
+        properties.setGrpcDeadline(Duration.ofSeconds(1));
+        ResilienceProperties resilienceProperties = new ResilienceProperties();
+        resilienceProperties.retry().setMaxAttempts(3);
+        resilienceProperties.retry().setBackoff(Duration.ofMillis(1));
+        resilienceProperties.circuitBreaker().setMinimumNumberOfCalls(10);
+        resilienceProperties.circuitBreaker().setSlidingWindowSize(10);
+        return new GrpcBotNotificationSender(properties, resilienceProperties, new ScrapperLogger());
+    }
+}

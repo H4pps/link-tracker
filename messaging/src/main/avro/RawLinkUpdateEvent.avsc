@@ -1,7 +1,7 @@
 {
   "type": "record",
   "name": "RawLinkUpdateEvent",
-  "namespace": "backend.academy.linktracker.messaging",
+  "namespace": "com.linktracker.messaging",
   "fields": [
     {
       "name": "id",

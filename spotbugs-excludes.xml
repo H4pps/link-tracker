@@ -71,11 +71,11 @@
 
     <!-- Protobuf/gRPC generated sources -->
     <Match>
-        <Package name="backend.academy.linktracker.grpc"/>
+        <Package name="com.linktracker.grpc"/>
     </Match>
 
     <!-- Avro generated sources -->
     <Match>
-        <Package name="backend.academy.linktracker.messaging"/>
+        <Package name="com.linktracker.messaging"/>
     </Match>
 </FindBugsFilter>

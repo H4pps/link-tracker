@@ -1,30 +1,36 @@
 # LinkTracker
 
-LinkTracker — учебный проект из двух сервисов: `scrapper` и `bot`.
+LinkTracker is a multi-service Java application for tracking GitHub repositories and StackOverflow questions, then delivering updates to Telegram.
 
-## Требования
+The repository contains three runtime services:
+
+- `scrapper`: tracks links, reads external sources, stores subscriptions, and publishes updates.
+- `bot`: handles Telegram commands and sends update notifications to users.
+- `ai-agent`: filters and summarizes Kafka link update events before delivery.
+
+## Requirements
 
 - JDK 25
-- Maven Wrapper (`./mvnw`, уже в репозитории)
+- Maven Wrapper (`./mvnw`, included in the repository)
 - Docker
 - Docker Compose (`docker compose`)
 
-## Настройка `.env` в корне проекта
+## Root `.env` Setup
 
-1. Создайте корневой `.env` из шаблона:
+1. Copy the root environment template:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Заполните обязательные поля:
+2. Fill the required values:
 
 - `TELEGRAM_TOKEN`
 - `GITHUB_TOKEN`
 - `STACKOVERFLOW_KEY`
 - `STACKOVERFLOW_ACCESS_KEY`
 
-3. Проверьте/при необходимости скорректируйте переменные базы данных:
+3. Check the database variables and adjust them when needed:
 
 - `POSTGRES_DB`
 - `POSTGRES_USER`
@@ -33,37 +39,35 @@ cp .env.example .env
 - `SPRING_DATASOURCE_USERNAME`
 - `SPRING_DATASOURCE_PASSWORD`
 
-4. Выберите тип доступа к БД:
+4. Choose the database access type:
 
 ```dotenv
 APP_DATABASE_ACCESS_TYPE=SQL
 ```
 
-Допустимые значения: `SQL` или `ORM`.
+Supported values are `SQL` and `ORM`.
 
-5. Проверьте настройки кэша Scrapper `GET /links`:
+5. Check the Scrapper `GET /links` cache settings:
 
-- `APP_VALKEY_CLUSTER_NODES` — ноды Valkey cluster, для Docker Compose: `valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002`; для локального запуска из IDE: `localhost:17000,localhost:17001,localhost:17002`;
-- `APP_VALKEY_TIMEOUT` — таймаут операций Redis/Lettuce, по умолчанию `2s`;
-- `APP_CACHE_LIST_LINKS_ENABLED` — включает кэш unpaged `GET /links`, по умолчанию `true`;
-- `APP_CACHE_LIST_LINKS_TTL` — TTL значения в Valkey, по умолчанию `10m`.
+- `APP_VALKEY_CLUSTER_NODES`: Valkey cluster nodes. For Docker Compose use `valkey-node-0:7000,valkey-node-1:7001,valkey-node-2:7002`; for local IDE runs use `localhost:17000,localhost:17001,localhost:17002`.
+- `APP_VALKEY_TIMEOUT`: Redis/Lettuce operation timeout. Default: `2s`.
+- `APP_CACHE_LIST_LINKS_ENABLED`: enables the unpaged `GET /links` cache. Default: `true`.
+- `APP_CACHE_LIST_LINKS_TTL`: Valkey value TTL. Default: `10m`.
 
-Кэшируется только unpaged список ссылок: REST `GET /links` без `limit` или с `limit=0`, и gRPC `ListLinks` с `limit=0`.
-Ключом является только chat id из `Tg-Chat-Id`; paginated вызовы кэш обходят. После успешных `POST /links`,
-`DELETE /links` и удаления чата ключ этого чата удаляется из кэша.
+Only the unpaged link list is cached: REST `GET /links` without `limit` or with `limit=0`, and gRPC `ListLinks` with `limit=0`.
+The cache key is the chat id from `Tg-Chat-Id`; paginated calls bypass the cache. After successful `POST /links`, `DELETE /links`, or chat deletion, the cache entry for that chat is removed.
 
-Ошибки чтения, записи и удаления из Valkey не меняют контракт API: Scrapper логирует сбой и продолжает работать через
-репозиторий. Ответы с ошибками не кэшируются.
+Valkey read, write, and delete errors do not change the API contract. Scrapper logs the failure and continues through the repository. Error responses are not cached.
 
-6. При необходимости настройте планировщик проверки ссылок:
+6. Configure the link-check scheduler when needed:
 
-- `APP_SCHEDULER_LINK_PAGE_SIZE` — размер батча ссылок, допустимый диапазон `50..500`, значение по умолчанию `100`.
-- `APP_SCHEDULER_WORKER_COUNT` — количество рабочих потоков, минимум `1`, значение по умолчанию приложения `1` (в `docker-compose.yml` задано `4` для демонстрации многопоточной обработки).
+- `APP_SCHEDULER_LINK_PAGE_SIZE`: link batch size. Supported range: `50..500`. Default: `100`.
+- `APP_SCHEDULER_WORKER_COUNT`: worker thread count. Minimum: `1`. The application default is `1`; `docker-compose.yml` sets `4` to demonstrate parallel processing.
 
-7. Настройте транспорт обновлений Scrapper -> Bot:
+7. Configure Scrapper -> Bot update transport:
 
-- `APP_BOT_MODE` — по умолчанию `kafka` (допустимые значения: `kafka`, `grpc`, `http`).
-- Для Kafka используются:
+- `APP_BOT_MODE`: default is `kafka`. Supported values: `kafka`, `grpc`, and `http`.
+- Kafka uses:
   - `APP_KAFKA_BOOTSTRAP_SERVERS`
   - `APP_KAFKA_SCHEMA_REGISTRY_URL`
   - `APP_KAFKA_LINK_UPDATES_TOPIC`
@@ -74,57 +78,52 @@ APP_DATABASE_ACCESS_TYPE=SQL
   - `APP_KAFKA_OUTBOX_BATCH_SIZE`
   - `APP_KAFKA_OUTBOX_PUBLISH_INTERVAL`
 
-Консьюмер Bot идемпотентен: каждое уведомление помечается стабильным `message-id` (UUID из outbox-строки,
-передаётся в Kafka-заголовке) и хранится в таблице `processed_link_updates`, поэтому повторная доставка одного
-и того же сообщения не приводит к дублю уведомления пользователю. Для этого Bot тоже подключается к PostgreSQL
-(`SPRING_DATASOURCE_URL` / `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD`).
+The Bot Kafka consumer is idempotent: every notification has a stable `message-id` header and is stored in `processed_link_updates`, so repeated delivery of the same message does not duplicate the Telegram notification. Bot therefore also connects to PostgreSQL through `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`.
 
-8. При необходимости настройте отказоустойчивость внешних вызовов и REST rate limiting:
+8. Configure external-call resilience and REST rate limiting when needed:
 
-- `APP_RESILIENCE_RETRY_MAX_ATTEMPTS` — количество попыток retry, по умолчанию `3`;
-- `APP_RESILIENCE_RETRY_BACKOFF` — constant backoff между попытками, по умолчанию `200ms`;
-- `APP_RESILIENCE_RETRY_RETRYABLE_HTTP_STATUSES` — retryable HTTP-статусы, по умолчанию `500,502,503,504`;
-- `APP_RESILIENCE_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD` — порог ошибок Circuit Breaker, по умолчанию `50`;
-- `APP_RESILIENCE_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE` — размер sliding window, по умолчанию `10`;
-- `APP_RESILIENCE_CIRCUIT_BREAKER_MINIMUM_NUMBER_OF_CALLS` — минимальное число вызовов для расчёта ошибок, по умолчанию `5`;
-- `APP_RESILIENCE_CIRCUIT_BREAKER_PERMITTED_CALLS_IN_HALF_OPEN_STATE` — число пробных вызовов в HALF_OPEN, по умолчанию `2`;
-- `APP_RESILIENCE_CIRCUIT_BREAKER_OPEN_STATE_DURATION` — время OPEN-состояния, по умолчанию `5s`;
-- `APP_RESILIENCE_RATE_LIMIT_LIMIT_FOR_PERIOD` — число разрешённых запросов на IP за период, по умолчанию `60`;
-- `APP_RESILIENCE_RATE_LIMIT_LIMIT_REFRESH_PERIOD` — период обновления лимита, по умолчанию `1m`;
-- `APP_RESILIENCE_RATE_LIMIT_TIMEOUT_DURATION` — ожидание свободного разрешения Resilience4J RateLimiter, по умолчанию `0ms`.
+- `APP_RESILIENCE_RETRY_MAX_ATTEMPTS`: retry attempts. Default: `3`.
+- `APP_RESILIENCE_RETRY_BACKOFF`: constant retry backoff. Default: `200ms`.
+- `APP_RESILIENCE_RETRY_RETRYABLE_HTTP_STATUSES`: retryable HTTP statuses. Default: `500,502,503,504`.
+- `APP_RESILIENCE_CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD`: circuit breaker failure threshold. Default: `50`.
+- `APP_RESILIENCE_CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE`: sliding window size. Default: `10`.
+- `APP_RESILIENCE_CIRCUIT_BREAKER_MINIMUM_NUMBER_OF_CALLS`: minimum calls used to calculate failures. Default: `5`.
+- `APP_RESILIENCE_CIRCUIT_BREAKER_PERMITTED_CALLS_IN_HALF_OPEN_STATE`: trial calls in HALF_OPEN. Default: `2`.
+- `APP_RESILIENCE_CIRCUIT_BREAKER_OPEN_STATE_DURATION`: OPEN state duration. Default: `5s`.
+- `APP_RESILIENCE_RATE_LIMIT_LIMIT_FOR_PERIOD`: allowed requests per IP per period. Default: `60`.
+- `APP_RESILIENCE_RATE_LIMIT_LIMIT_REFRESH_PERIOD`: limit refresh period. Default: `1m`.
+- `APP_RESILIENCE_RATE_LIMIT_TIMEOUT_DURATION`: wait time for a Resilience4J RateLimiter permit. Default: `0ms`.
 
-Resilience4J-backed rate limiting применяется только к публичным REST endpoint'ам: Scrapper `/links`, `/tg-chat/**` и Bot `/updates`.
-IP берётся из первого значения `X-Forwarded-For`, если заголовок есть, иначе из `remoteAddr`.
+Resilience4J-backed rate limiting applies only to public REST endpoints: Scrapper `/links`, Scrapper `/tg-chat/**`, and Bot `/updates`.
+The client IP is read from the first `X-Forwarded-For` value when present; otherwise `remoteAddr` is used.
 
-Корневой `.env.example` рассчитан на запуск через Docker Compose, поэтому межсервисные адреса используют имена контейнеров: `postgres`, `scrapper`, `bot`.
+The root `.env.example` is prepared for Docker Compose, so inter-service addresses use container names such as `postgres`, `scrapper`, and `bot`.
 
-## Запуск через Docker Compose
+## Run With Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-`docker-compose.yml` поднимает PostgreSQL, Valkey cluster из 3 нод, Kafka KRaft-кластер из 3 брокеров, Schema Registry,
-инициализацию топиков (`link.raw-updates`, `link.processed-updates` и их DLQ), Kafka UI, а также сервисы
-`scrapper`, `bot` и `ai-agent`.
+`docker-compose.yml` starts PostgreSQL, a 3-node Valkey cluster, a 3-broker Kafka KRaft cluster, Schema Registry, topic initialization for `link.raw-updates`, `link.processed-updates`, and their DLQs, Kafka UI, plus `scrapper`, `bot`, and `ai-agent`.
 
-Маршрут сообщений: `Scrapper -> link.raw-updates -> AI Agent -> link.processed-updates -> Bot -> Telegram`.
+Message route: `Scrapper -> link.raw-updates -> AI Agent -> link.processed-updates -> Bot -> Telegram`.
 
-## Запуск вручную / из IDE
+## Run Manually Or From An IDE
 
-1. Поднимите инфраструктуру:
+1. Start infrastructure:
 
 ```bash
 docker compose up -d postgres kafka-1 kafka-2 kafka-3 schema-registry topic-init
 ```
 
-Для Scrapper с включённым кэшем дополнительно поднимите Valkey:
+For Scrapper with the cache enabled, also start Valkey:
 
 ```bash
 docker compose up -d valkey-node-0 valkey-node-1 valkey-node-2 valkey-cluster-init
 ```
 
-2. Для ручного запуска используйте модульные env-файлы с localhost-адресами:
+2. Copy module-level environment templates with localhost addresses:
 
 ```bash
 cp scrapper/.env.example scrapper/.env
@@ -132,36 +131,31 @@ cp bot/.env.example bot/.env
 cp ai-agent/.env.example ai-agent/.env
 ```
 
-3. Запустите `scrapper`:
+3. Start `scrapper`:
 
-- IDE: `backend.academy.linktracker.scrapper.ScrapperApplication`
+- IDE: `com.linktracker.scrapper.ScrapperApplication`
 - CLI: `./mvnw -pl scrapper spring-boot:run`
 
-4. Запустите `ai-agent`:
+4. Start `ai-agent`:
 
-- IDE: `backend.academy.linktracker.ai.AiAgentApplication`
+- IDE: `com.linktracker.ai.AiAgentApplication`
 - CLI: `./mvnw -pl ai-agent spring-boot:run`
 
-5. Запустите `bot`:
+5. Start `bot`:
 
-- IDE: `backend.academy.linktracker.bot.BotApplication`
+- IDE: `com.linktracker.bot.BotApplication`
 - CLI: `./mvnw -pl bot spring-boot:run`
 
-Порядок запуска обязателен: сначала PostgreSQL и Kafka, затем `ScrapperApplication`, `AiAgentApplication` и
-`BotApplication`. AI Agent работает «просто из IDE» с заглушкой-суммаризацией; ключ для AI API не требуется.
+Start PostgreSQL and Kafka first, then `ScrapperApplication`, `AiAgentApplication`, and `BotApplication`. AI Agent works from the IDE with the stub summarizer; no AI API key is required for that mode.
 
-Если хотите временно отключить Kafka в ручном запуске и использовать gRPC-транспорт:
+To temporarily disable Kafka for a manual run and use gRPC transport:
 
-- в `scrapper/.env` выставьте `APP_BOT_MODE=grpc`;
-- в `bot/.env` выставьте `APP_KAFKA_ENABLED=false`.
+- set `APP_BOT_MODE=grpc` in `scrapper/.env`;
+- set `APP_KAFKA_ENABLED=false` in `bot/.env`.
 
-Valkey cluster в Compose объявляет ноды как `valkey-node-0..2`, а наружу публикует порты `17000..17002`, чтобы не
-конфликтовать с системными сервисами macOS на `7000`. При запуске Scrapper из IDE с `scrapper/.env.example` и
-localhost-портами убедитесь, что клиент может резолвить имена `valkey-node-0..2` после cluster redirects, либо
-запускайте Scrapper через Docker Compose.
+Valkey cluster nodes are named `valkey-node-0..2` inside Compose and are published as `17000..17002` on the host to avoid conflicts with macOS system services on `7000`. When running Scrapper from an IDE with `scrapper/.env.example` and localhost ports, make sure the client can resolve `valkey-node-0..2` after cluster redirects, or run Scrapper through Docker Compose.
 
-Если ранее уже запускалась другая Valkey cluster topology, удалите старые Valkey volumes перед первым запуском,
-иначе ноды могут подняться со старым `nodes.conf`.
+If another Valkey cluster topology was started earlier, remove old Valkey volumes before the first run:
 
 ```bash
 docker compose rm -sf valkey-node-0 valkey-node-1 valkey-node-2 valkey-cluster-init
@@ -169,84 +163,74 @@ docker volume rm link-tracker_valkey_node_0_data link-tracker_valkey_node_1_data
   2>/dev/null || true
 ```
 
-## Финальные команды проверки (test/lint)
+## Verification Commands
 
-Lint/check:
+Lint and static checks:
 
 ```bash
 ./mvnw clean compile -am spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
 ```
 
-Быстрые тесты `bot` и `scrapper` без Testcontainers-интеграций:
+Fast `bot` and `scrapper` tests without Testcontainers integrations:
 
 ```bash
 ./mvnw -pl bot,scrapper -am test
 ```
 
-## Проверка интеграции Scraper -> Kafka -> Bot
+## Scrapper -> Kafka -> Bot Integration Check
 
-Полный путь сообщения (Scrapper -> Transactional Outbox -> Kafka -> Bot -> Telegram) проверяет
-end-to-end тест на Testcontainers. Ассистент может запустить его локально (требуется Docker):
+The full message path is Scrapper -> Transactional Outbox -> Kafka -> Bot -> Telegram. It is covered by an end-to-end Testcontainers test and requires Docker:
 
 ```bash
 ./mvnw -pl bot -am -Dsurefire.skip=true -DskipITs=false \
   -Dit.test='TransportIntegrationE2EIT#kafkaTransportFlowDeliversNotificationFromScrapperToTelegram' verify
 ```
 
-Тест поднимает Kafka, Schema Registry, контейнеры `scrapper` и `bot`, эмулирует Telegram/GitHub,
-отслеживает ссылку через бота и проверяет, что обновление доходит до пользователя по Kafka-транспорту.
+The test starts Kafka, Schema Registry, `scrapper`, and `bot`, emulates Telegram and GitHub, tracks a link through the bot, and verifies that an update reaches the user through Kafka transport.
 
-Дополнительные интеграционные тесты на Testcontainers Kafka запускаются через Failsafe:
+Additional Testcontainers Kafka integration tests run through Failsafe:
 
 ```bash
-# Scrapper: outbox -> Avro-событие в Kafka, статус строки меняется только после ack
+# Scrapper: outbox -> Avro event in Kafka, row status changes only after ack.
 ./mvnw -pl scrapper -am -Dsurefire.skip=true -DskipITs=false -Dit.test=KafkaOutboxIntegrationTest verify
 
-# Bot: валидное сообщение, валидация -> DLQ, ошибка десериализации -> DLQ, повторы -> DLQ
+# Bot: valid message, validation -> DLQ, deserialization error -> DLQ, retries -> DLQ.
 ./mvnw -pl bot -am -Dsurefire.skip=true -DskipITs=false -Dit.test=KafkaConsumerIntegrationTest verify
 ```
 
-## Настройки топиков Kafka
+## Kafka Topic Settings
 
-Топики создаёт сервис `topic-init` в `docker-compose.yml`:
+Topics are created by the `topic-init` service in `docker-compose.yml`:
 
-- `link.raw-updates` — сырые обновления Scrapper -> AI Agent (поле `author` добавлено);
-- `link.raw-updates-dlq` — DLQ AI Agent для сообщений, которые не удалось десериализовать;
-- `link.processed-updates` — обработанные (отфильтрованные/суммаризированные) обновления AI Agent -> Bot;
-- `link.processed-updates-dlq` — DLQ Bot.
+- `link.raw-updates`: raw Scrapper -> AI Agent updates with the `author` field.
+- `link.raw-updates-dlq`: AI Agent DLQ for messages that could not be deserialized.
+- `link.processed-updates`: filtered and summarized AI Agent -> Bot updates.
+- `link.processed-updates-dlq`: Bot DLQ.
 
-Выбранные настройки и их обоснование:
+Selected settings:
 
-- `--partitions 3` — позволяет распараллелить обработку по ключу (ключ = URL ссылки), сохраняя
-  порядок событий в рамках одной ссылки; 3 партиции соответствуют числу брокеров.
-- `--replication-factor 3` — по одной реплике на каждый из трёх брокеров, кластер переживает отказ
-  любого узла без потери данных.
-- `min.insync.replicas=2` вместе с продьюсером `acks=all` — запись подтверждается только когда её
-  приняли минимум две реплики, что исключает потерю подтверждённых сообщений при падении одного брокера
-  (баланс между надёжностью и доступностью).
+- `--partitions 3`: enables parallel processing by key while preserving event order for the same link. The 3 partitions match the broker count.
+- `--replication-factor 3`: one replica per broker, so the cluster survives one broker failure without data loss.
+- `min.insync.replicas=2` with producer `acks=all`: writes are acknowledged only after at least two replicas accept them, preventing loss of acknowledged messages after one broker fails while keeping a balance between reliability and availability.
 
-## AI Agent Service (фильтрация и суммаризация)
+## AI Agent Service
 
-AI Agent читает `link.raw-updates`, применяет фильтрацию и суммаризацию и публикует результат в
-`link.processed-updates`.
+AI Agent reads `link.raw-updates`, filters and summarizes updates, then publishes results to `link.processed-updates`.
 
-- **Фильтрация** (`ai-agent.filtering`): по стоп-словам (`stop-words`), исключённым авторам
-  (`excluded-authors`) и минимальной длине (`min-length`). Отфильтрованные обновления не публикуются.
-- **Суммаризация** (`ai-agent.summarization`): если длина текста превышает `threshold`, текст сокращается.
-  Реализация выбирается свойством `ai-agent.summarization.mode`:
-  - `stub` (по умолчанию) — обрезка до `threshold` символов + `...`, ключ не нужен;
-  - `ai` — Spring AI `ChatClient` (OpenAI-совместимый эндпоинт, подходит для YandexGPT / HuggingFace /
-    локальной модели). Ключ задаётся через `APP_AI_OPENAI_API_KEY` и хранится только в `.env`.
-- **Устойчивость** (FR/NFR): некорректные сообщения уходят в `link.raw-updates-dlq` и не роняют сервис.
+- Filtering (`ai-agent.filtering`): uses stop words (`stop-words`), excluded authors (`excluded-authors`), and minimum length (`min-length`). Filtered updates are not published.
+- Summarization (`ai-agent.summarization`): if text length exceeds `threshold`, the text is shortened. The implementation is selected by `ai-agent.summarization.mode`:
+  - `stub` (default): truncates to `threshold` characters and appends `...`; no key is needed.
+  - `ai`: Spring AI `ChatClient` with an OpenAI-compatible endpoint, suitable for YandexGPT, HuggingFace, or a local model. The key is set through `APP_AI_OPENAI_API_KEY` and stored only in `.env`.
+- Resilience: invalid messages go to `link.raw-updates-dlq` and do not stop the service.
 
-Интеграционный тест на Testcontainers Kafka (получение валидного сообщения, фильтрация, суммаризация и
-обработка некорректного сообщения):
+Kafka integration test:
 
 ```bash
 ./mvnw -pl ai-agent -am -Dsurefire.skip=true -DskipITs=false -Dit.test=AiAgentKafkaIntegrationTest verify
 ```
 
-## Полезно
+## Useful Links
 
-- Документация по шаблону: [HELP.md](./HELP.md)
+- Project structure and Maven notes: [HELP.md](./HELP.md)
+- Short run guide: [GUIDELINES.md](./GUIDELINES.md)
 
