@@ -8,6 +8,93 @@ The repository contains three runtime services:
 - `bot`: handles Telegram commands and sends update notifications to users.
 - `ai-agent`: filters and summarizes Kafka link update events before delivery.
 
+## Architecture
+
+The following C4-style diagrams use Mermaid so they render directly in GitHub.
+
+### C4 Context
+
+```mermaid
+flowchart LR
+    user["Telegram user<br/>(Person)"]
+    linkTracker["LinkTracker<br/>(Software System)<br/>Tracks links and sends Telegram notifications"]
+    telegram["Telegram Bot API<br/>(External System)"]
+    github["GitHub REST API<br/>(External System)"]
+    stackoverflow["StackOverflow API<br/>(External System)"]
+
+    user -->|"Commands and messages"| linkTracker
+    linkTracker -->|"Bot API requests"| telegram
+    telegram -->|"Updates and delivery status"| linkTracker
+    linkTracker -->|"Repository and issue updates"| github
+    linkTracker -->|"Question updates"| stackoverflow
+    linkTracker -->|"Notifications"| user
+```
+
+### C4 Container
+
+```mermaid
+flowchart LR
+    user["Telegram user<br/>(Person)"]
+    telegram["Telegram Bot API<br/>(External System)"]
+    github["GitHub REST API<br/>(External System)"]
+    stackoverflow["StackOverflow API<br/>(External System)"]
+
+    subgraph linkTracker["LinkTracker"]
+        bot["bot<br/>(Spring Boot service)<br/>Telegram commands, REST /updates, gRPC server, Kafka consumer"]
+        scrapper["scrapper<br/>(Spring Boot service)<br/>Link CRUD, scheduler, REST API, gRPC server, outbox publisher"]
+        aiAgent["ai-agent<br/>(Spring Boot service)<br/>Filters and summarizes raw link updates"]
+        postgres[("PostgreSQL<br/>Chats, links, tags, outbox, processed messages")]
+        valkey[("Valkey cluster<br/>GET /links cache")]
+        kafka[("Kafka<br/>Raw and processed link update topics")]
+        schemaRegistry["Schema Registry<br/>Avro schemas"]
+    end
+
+    user -->|"Commands"| bot
+    bot -->|"Telegram API calls"| telegram
+    telegram -->|"Polling updates"| bot
+    bot -->|"Link and chat operations<br/>gRPC or REST"| scrapper
+    scrapper -->|"Fetch latest changes"| github
+    scrapper -->|"Fetch latest changes"| stackoverflow
+    scrapper -->|"Read/write"| postgres
+    bot -->|"Read/write idempotency state"| postgres
+    scrapper -->|"Cache link lists"| valkey
+    scrapper -->|"Publish raw updates"| kafka
+    aiAgent -->|"Consume raw updates"| kafka
+    aiAgent -->|"Publish processed updates"| kafka
+    bot -->|"Consume processed updates"| kafka
+    kafka -.->|"Schema validation"| schemaRegistry
+    bot -->|"Notifications"| telegram
+```
+
+### C4 Component: Update Delivery Path
+
+```mermaid
+flowchart LR
+    scheduler["ScheduledLinkUpdateJob<br/>(Scheduler)"]
+    updateUseCase["LinkUpdateSchedulerUseCase<br/>(Application component)"]
+    linkRepository["ScrapperLinkRepository<br/>(Port)"]
+    sourceResolver["LinkSourceResolver<br/>(Port)"]
+    externalReaders["GitHub / StackOverflow readers<br/>(Adapters)"]
+    outboxRepository["LinkUpdateOutboxRepository<br/>(Port)"]
+    outboxPublisher["KafkaOutboxPublisher<br/>(Adapter)"]
+    aiConsumer["AiAgentKafkaConsumer<br/>(Adapter)"]
+    processUseCase["ProcessUpdateUseCase<br/>(Application component)"]
+    botConsumer["KafkaLinkUpdateConsumer<br/>(Adapter)"]
+    botUseCase["TelegramBotUpdateUseCase<br/>(Application component)"]
+    telegramSender["TelegramBotOutboundSender<br/>(Adapter)"]
+
+    scheduler --> updateUseCase
+    updateUseCase --> linkRepository
+    updateUseCase --> sourceResolver
+    updateUseCase --> externalReaders
+    updateUseCase --> outboxRepository
+    outboxPublisher -->|"RawLinkUpdateEvent"| aiConsumer
+    aiConsumer --> processUseCase
+    processUseCase -->|"ProcessedLinkUpdateEvent"| botConsumer
+    botConsumer --> botUseCase
+    botUseCase --> telegramSender
+```
+
 ## Requirements
 
 - JDK 25
