@@ -27,6 +27,7 @@ public class OrmLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
         entity.setPayloadId(event.id());
         entity.setPayloadUrl(event.url());
         entity.setPayloadDescription(event.description());
+        entity.setPayloadAuthor(event.author());
         entity.setPayloadTgChatIds(LinkUpdateOutboxPayloadCodec.encodeChatIds(event.tgChatIds()));
         entity.setStatus(LinkUpdateOutboxEvent.Status.PENDING.name());
         entity.setAttempts(0);
@@ -88,6 +89,7 @@ public class OrmLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                 entity.getPayloadId(),
                 entity.getPayloadUrl(),
                 entity.getPayloadDescription(),
+                entity.getPayloadAuthor(),
                 LinkUpdateOutboxPayloadCodec.decodeChatIds(entity.getPayloadTgChatIds()),
                 LinkUpdateOutboxEvent.Status.valueOf(entity.getStatus()),
                 entity.getAttempts(),

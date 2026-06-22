@@ -364,7 +364,8 @@ class TransportIntegrationE2EIT {
     private void createKafkaTopics(String bootstrapServers) {
         try (Admin admin = Admin.create(Map.of("bootstrap.servers", bootstrapServers))) {
             admin.createTopics(List.of(
-                            new NewTopic("link-updates", 1, (short) 1), new NewTopic("link-updates-dlq", 1, (short) 1)))
+                            new NewTopic("link.processed-updates", 1, (short) 1),
+                            new NewTopic("link.processed-updates-dlq", 1, (short) 1)))
                     .all()
                     .get();
         } catch (InterruptedException exception) {

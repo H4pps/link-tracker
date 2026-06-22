@@ -4,3 +4,46 @@ server:
 spring:
   application:
     name: ai-agent
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        schema.registry.url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+    properties:
+      schema.registry.url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+  ai:
+    openai:
+      base-url: ${APP_AI_OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${APP_AI_OPENAI_API_KEY:dummy-key} # Use env variable for a real key. DO NOT KEEP SECRETS HERE
+      chat:
+        options:
+          model: ${APP_AI_OPENAI_MODEL:gpt-4o-mini}
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level --- [%15.15t] %-40.40logger{39} : %msg %kvp%n%wEx"
+
+app:
+  kafka:
+    enabled: ${APP_KAFKA_ENABLED:true}
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    schema-registry-url: ${APP_KAFKA_SCHEMA_REGISTRY_URL:http://localhost:8085}
+    raw-updates-topic: ${APP_KAFKA_RAW_UPDATES_TOPIC:link.raw-updates}
+    processed-updates-topic: ${APP_KAFKA_PROCESSED_UPDATES_TOPIC:link.processed-updates}
+    raw-updates-dlq-topic: ${APP_KAFKA_RAW_UPDATES_DLQ_TOPIC:link.raw-updates-dlq}
+    consumer-group: ${APP_KAFKA_CONSUMER_GROUP:ai-agent}
+    max-attempts: ${APP_KAFKA_MAX_ATTEMPTS:3}
+    retry-backoff: ${APP_KAFKA_RETRY_BACKOFF:1s}
+
+ai-agent:
+  filtering:
+    stop-words: ${APP_AI_AGENT_STOP_WORDS:}
+    excluded-authors: ${APP_AI_AGENT_EXCLUDED_AUTHORS:}
+    min-length: ${APP_AI_AGENT_MIN_LENGTH:20}
+  summarization:
+    mode: ${APP_AI_AGENT_SUMMARIZATION_MODE:stub} # stub | ai
+    threshold: ${APP_AI_AGENT_SUMMARIZATION_THRESHOLD:500}

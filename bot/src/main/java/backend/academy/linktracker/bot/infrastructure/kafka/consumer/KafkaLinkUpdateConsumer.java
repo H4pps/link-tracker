@@ -22,7 +22,7 @@ public class KafkaLinkUpdateConsumer {
     private final KafkaLinkUpdateMessageHandler messageHandler;
 
     @KafkaListener(
-            topics = "${app.kafka.link-updates-topic:link-updates}",
+            topics = "${app.kafka.processed-updates-topic:link.processed-updates}",
             groupId = "${app.kafka.consumer-group:link-tracker-bot}",
             containerFactory = "kafkaRawListenerContainerFactory")
     public void listen(

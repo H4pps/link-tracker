@@ -32,7 +32,7 @@ build:
     policy: pull-push
   script:
     - apk add --no-cache gcompat
-    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper -am package -Dmaven.test.skip=true -Djacoco.skip=true -Dspring-boot.repackage.skip=true
+    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper,ai-agent -am package -Dmaven.test.skip=true -Djacoco.skip=true -Dspring-boot.repackage.skip=true
 
 lint:
   stage: lint
@@ -41,7 +41,7 @@ lint:
     - build
   script:
     - apk add --no-cache gcompat
-    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper -am compile spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
+    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper,ai-agent -am compile spotless:check modernizer:modernizer spotbugs:check pmd:check pmd:cpd-check
 
 test:
   stage: test
@@ -50,4 +50,4 @@ test:
     - build
   script:
     - apk add --no-cache gcompat
-    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper -am test -DskipITs=true -Djacoco.skip=true
+    - ./mvnw --batch-mode --no-transfer-progress -pl bot,scrapper,ai-agent -am test -DskipITs=true -Djacoco.skip=true

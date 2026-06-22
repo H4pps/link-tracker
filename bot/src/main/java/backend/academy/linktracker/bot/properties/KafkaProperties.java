@@ -34,10 +34,10 @@ public class KafkaProperties {
     private String schemaRegistryUrl = "http://localhost:8085";
 
     @NotEmpty
-    private String linkUpdatesTopic = "link-updates";
+    private String processedUpdatesTopic = "link.processed-updates";
 
     @NotEmpty
-    private String linkUpdatesDlqTopic = "link-updates-dlq";
+    private String processedUpdatesDlqTopic = "link.processed-updates-dlq";
 
     @NotEmpty
     private String consumerGroup = "link-tracker-bot";

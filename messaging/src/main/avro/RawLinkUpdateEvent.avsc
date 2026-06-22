@@ -1,6 +1,6 @@
 {
   "type": "record",
-  "name": "LinkUpdateEvent",
+  "name": "RawLinkUpdateEvent",
   "namespace": "backend.academy.linktracker.messaging",
   "fields": [
     {
@@ -14,6 +14,11 @@
     {
       "name": "description",
       "type": "string"
+    },
+    {
+      "name": "author",
+      "type": "string",
+      "default": ""
     },
     {
       "name": "tgChatIds",

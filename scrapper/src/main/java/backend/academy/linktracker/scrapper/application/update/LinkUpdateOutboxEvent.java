@@ -12,6 +12,7 @@ import java.util.UUID;
  * @param id link update identifier
  * @param url tracked URL
  * @param description update description
+ * @param author update author display name
  * @param tgChatIds target Telegram chat identifiers
  * @param status delivery status
  * @param attempts delivery attempt counter
@@ -27,6 +28,7 @@ public record LinkUpdateOutboxEvent(
         long id,
         String url,
         String description,
+        String author,
         List<Long> tgChatIds,
         Status status,
         int attempts,
@@ -50,6 +52,7 @@ public record LinkUpdateOutboxEvent(
     public LinkUpdateOutboxEvent {
         tgChatIds = tgChatIds == null ? List.of() : List.copyOf(tgChatIds);
         description = description == null ? "" : description;
+        author = author == null ? "" : author;
     }
 
     /**
@@ -58,16 +61,19 @@ public record LinkUpdateOutboxEvent(
      * @param id link update identifier
      * @param url tracked URL
      * @param description update description
+     * @param author update author display name
      * @param tgChatIds target Telegram chat identifiers
      * @return pending outbox event ready for persistence
      */
-    public static LinkUpdateOutboxEvent pending(long id, String url, String description, List<Long> tgChatIds) {
+    public static LinkUpdateOutboxEvent pending(
+            long id, String url, String description, String author, List<Long> tgChatIds) {
         return new LinkUpdateOutboxEvent(
                 null,
                 UUID.randomUUID(),
                 id,
                 url,
                 description,
+                author,
                 tgChatIds,
                 Status.PENDING,
                 0,
@@ -76,5 +82,18 @@ public record LinkUpdateOutboxEvent(
                 null,
                 null,
                 null);
+    }
+
+    /**
+     * Factory for a newly created pending outbox event without a known author.
+     *
+     * @param id link update identifier
+     * @param url tracked URL
+     * @param description update description
+     * @param tgChatIds target Telegram chat identifiers
+     * @return pending outbox event ready for persistence
+     */
+    public static LinkUpdateOutboxEvent pending(long id, String url, String description, List<Long> tgChatIds) {
+        return pending(id, url, description, "", tgChatIds);
     }
 }

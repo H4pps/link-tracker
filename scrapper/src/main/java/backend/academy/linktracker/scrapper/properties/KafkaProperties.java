@@ -32,13 +32,7 @@ public class KafkaProperties {
     private String schemaRegistryUrl = "http://localhost:8085";
 
     @NotEmpty
-    private String linkUpdatesTopic = "link-updates";
-
-    @NotEmpty
-    private String linkUpdatesDlqTopic = "link-updates-dlq";
-
-    @NotEmpty
-    private String consumerGroup = "link-tracker-bot";
+    private String rawUpdatesTopic = "link.raw-updates";
 
     @Min(1)
     private int maxAttempts = 3;

@@ -45,7 +45,7 @@ class KafkaConsumerConfigurationTest {
 
         var factory = configuration.kafkaRawListenerContainerFactory(
                 configuration.rawKafkaConsumerFactory(kafkaProperties), errorHandler);
-        var container = factory.createContainer("link-updates");
+        var container = factory.createContainer("link.processed-updates");
 
         assertThat(container.getCommonErrorHandler()).isSameAs(errorHandler);
     }
@@ -64,7 +64,7 @@ class KafkaConsumerConfigurationTest {
                 .isTrue();
         ProducerRecord<String, byte[]> dlqRecord = capturedDlqRecord();
 
-        assertThat(dlqRecord.topic()).isEqualTo("link-updates-dlq");
+        assertThat(dlqRecord.topic()).isEqualTo("link.processed-updates-dlq");
         assertThat(dlqRecord.partition()).isNull();
         assertThat(dlqRecord.key()).isEqualTo("key-1");
         assertThat(dlqRecord.value()).containsExactly(1, 2, 3);
@@ -123,14 +123,14 @@ class KafkaConsumerConfigurationTest {
     private KafkaProperties kafkaProperties(int maxAttempts, Duration retryBackoff) {
         KafkaProperties kafkaProperties = new KafkaProperties();
         kafkaProperties.setBootstrapServers("localhost:9092");
-        kafkaProperties.setLinkUpdatesDlqTopic("link-updates-dlq");
+        kafkaProperties.setProcessedUpdatesDlqTopic("link.processed-updates-dlq");
         kafkaProperties.setMaxAttempts(maxAttempts);
         kafkaProperties.setRetryBackoff(retryBackoff);
         return kafkaProperties;
     }
 
     private ConsumerRecord<String, byte[]> consumerRecord(String key, byte[] payload) {
-        return new ConsumerRecord<>("link-updates", 0, 42L, key, payload);
+        return new ConsumerRecord<>("link.processed-updates", 0, 42L, key, payload);
     }
 
     private ProducerRecord<String, byte[]> capturedDlqRecord() {

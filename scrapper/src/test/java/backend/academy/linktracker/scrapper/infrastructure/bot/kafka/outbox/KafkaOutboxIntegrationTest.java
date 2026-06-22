@@ -2,7 +2,7 @@ package backend.academy.linktracker.scrapper.infrastructure.bot.kafka.outbox;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.RawLinkUpdateEvent;
 import backend.academy.linktracker.scrapper.ScrapperApplication;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxEvent;
 import backend.academy.linktracker.scrapper.application.update.LinkUpdateOutboxRepository;
@@ -65,8 +65,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         })
 class KafkaOutboxIntegrationTest {
 
-    private static final String LINK_UPDATES_TOPIC = "link-updates";
-    private static final String LINK_UPDATES_DLQ_TOPIC = "link-updates-dlq";
+    private static final String LINK_UPDATES_TOPIC = "link.raw-updates";
+    private static final String LINK_UPDATES_DLQ_TOPIC = "link.raw-updates-dlq";
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
@@ -122,7 +122,7 @@ class KafkaOutboxIntegrationTest {
 
     @Test
     void publishesAvroEventToKafkaAndMarksOutboxRowSentOnlyAfterAck() {
-        try (KafkaConsumer<String, LinkUpdateEvent> consumer = createAvroConsumer()) {
+        try (KafkaConsumer<String, RawLinkUpdateEvent> consumer = createAvroConsumer()) {
             consumer.poll(Duration.ofMillis(500));
 
             outboxRepository.save(LinkUpdateOutboxEvent.pending(
@@ -132,12 +132,12 @@ class KafkaOutboxIntegrationTest {
 
             publisher.publishDueEvents();
 
-            List<ConsumerRecord<String, LinkUpdateEvent>> records = pollRecords(consumer, Duration.ofSeconds(15));
-            ConsumerRecord<String, LinkUpdateEvent> record = records.stream()
+            List<ConsumerRecord<String, RawLinkUpdateEvent>> records = pollRecords(consumer, Duration.ofSeconds(15));
+            ConsumerRecord<String, RawLinkUpdateEvent> record = records.stream()
                     .filter(candidate -> candidate.value().getId() == 77L)
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("Avro event was not published to " + LINK_UPDATES_TOPIC));
-            LinkUpdateEvent event = record.value();
+            RawLinkUpdateEvent event = record.value();
 
             assertThat(String.valueOf(event.getUrl())).isEqualTo("https://github.com/acme/repo");
             assertThat(String.valueOf(event.getDescription())).isEqualTo("changed: new issue opened");
@@ -169,7 +169,7 @@ class KafkaOutboxIntegrationTest {
         assertThat(sentAtOf(outboxId)).isNull();
     }
 
-    private KafkaConsumer<String, LinkUpdateEvent> createAvroConsumer() {
+    private KafkaConsumer<String, RawLinkUpdateEvent> createAvroConsumer() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KafkaTestCluster.bootstrapServers());
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "outbox-it-" + UUID.randomUUID());
@@ -178,25 +178,25 @@ class KafkaOutboxIntegrationTest {
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaAvroDeserializer.class);
         config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, KafkaTestCluster.schemaRegistryUrl());
         config.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, true);
-        KafkaConsumer<String, LinkUpdateEvent> consumer = new KafkaConsumer<>(config);
+        KafkaConsumer<String, RawLinkUpdateEvent> consumer = new KafkaConsumer<>(config);
         consumer.subscribe(List.of(LINK_UPDATES_TOPIC));
         return consumer;
     }
 
-    private List<ConsumerRecord<String, LinkUpdateEvent>> pollRecords(
-            KafkaConsumer<String, LinkUpdateEvent> consumer, Duration timeout) {
-        List<ConsumerRecord<String, LinkUpdateEvent>> collected = new ArrayList<>();
+    private List<ConsumerRecord<String, RawLinkUpdateEvent>> pollRecords(
+            KafkaConsumer<String, RawLinkUpdateEvent> consumer, Duration timeout) {
+        List<ConsumerRecord<String, RawLinkUpdateEvent>> collected = new ArrayList<>();
         long deadline = System.nanoTime() + timeout.toNanos();
         while (System.nanoTime() < deadline && collected.isEmpty()) {
-            ConsumerRecords<String, LinkUpdateEvent> records = consumer.poll(Duration.ofMillis(500));
-            for (ConsumerRecord<String, LinkUpdateEvent> record : records) {
+            ConsumerRecords<String, RawLinkUpdateEvent> records = consumer.poll(Duration.ofMillis(500));
+            for (ConsumerRecord<String, RawLinkUpdateEvent> record : records) {
                 collected.add(record);
             }
         }
         return collected;
     }
 
-    private KafkaTemplate<String, LinkUpdateEvent> deadBrokerTemplate() {
+    private KafkaTemplate<String, RawLinkUpdateEvent> deadBrokerTemplate() {
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:1");
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);

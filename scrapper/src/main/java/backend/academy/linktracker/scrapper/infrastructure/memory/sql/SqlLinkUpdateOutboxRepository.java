@@ -34,18 +34,20 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                     payload_id,
                     payload_url,
                     payload_description,
+                    payload_author,
                     payload_tg_chat_ids,
                     status,
                     attempts,
                     next_attempt_at,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, 'PENDING', 0, NOW(), NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, 'PENDING', 0, NOW(), NOW(), NOW())
                 """,
                 event.messageId(),
                 event.id(),
                 event.url(),
                 event.description(),
+                event.author(),
                 LinkUpdateOutboxPayloadCodec.encodeChatIds(event.tgChatIds()));
     }
 
@@ -60,6 +62,7 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                     payload_id,
                     payload_url,
                     payload_description,
+                    payload_author,
                     payload_tg_chat_ids,
                     status,
                     attempts,
@@ -81,6 +84,7 @@ public class SqlLinkUpdateOutboxRepository implements LinkUpdateOutboxRepository
                         resultSet.getLong("payload_id"),
                         resultSet.getString("payload_url"),
                         resultSet.getString("payload_description"),
+                        resultSet.getString("payload_author"),
                         LinkUpdateOutboxPayloadCodec.decodeChatIds(resultSet.getString("payload_tg_chat_ids")),
                         LinkUpdateOutboxEvent.Status.valueOf(resultSet.getString("status")),
                         resultSet.getInt("attempts"),

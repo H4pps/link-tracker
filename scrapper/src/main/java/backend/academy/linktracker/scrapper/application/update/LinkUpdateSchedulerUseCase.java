@@ -155,6 +155,7 @@ public class LinkUpdateSchedulerUseCase {
                     trackedLink.id(),
                     trackedLink.url(),
                     updateDescriptionFormatter.format(latestUpdate),
+                    latestUpdate.author(),
                     trackedLink.chatIds());
             scrapperLogger.logSchedulerNotifyAttempt(
                     trackedLink.url(), trackedLink.chatIds().size());

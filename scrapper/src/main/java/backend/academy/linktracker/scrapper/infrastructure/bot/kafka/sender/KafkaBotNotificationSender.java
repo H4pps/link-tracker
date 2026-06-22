@@ -24,7 +24,11 @@ public class KafkaBotNotificationSender implements BotNotificationSender {
     public boolean send(LinkUpdateNotification notification) {
         try {
             outboxRepository.save(LinkUpdateOutboxEvent.pending(
-                    notification.id(), notification.url(), notification.description(), notification.tgChatIds()));
+                    notification.id(),
+                    notification.url(),
+                    notification.description(),
+                    notification.author(),
+                    notification.tgChatIds()));
             return true;
         } catch (RuntimeException exception) {
             scrapperLogger.logExternalFetchFailed(

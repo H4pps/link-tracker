@@ -20,3 +20,10 @@ databaseChangeLog:
         - sqlFile:
             path: changesets/003-add-outbox-message-id.sql
             relativeToChangelogFile: true
+  - changeSet:
+      id: 004-add-outbox-author
+      author: scrapper
+      changes:
+        - sqlFile:
+            path: changesets/004-add-outbox-author.sql
+            relativeToChangelogFile: true

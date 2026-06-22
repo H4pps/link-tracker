@@ -3,7 +3,7 @@ package backend.academy.linktracker.bot.infrastructure.kafka.handler;
 import backend.academy.linktracker.bot.infrastructure.kafka.exception.KafkaLinkUpdateDeserializationException;
 import backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventProcessingService;
 import backend.academy.linktracker.bot.properties.KafkaProperties;
-import backend.academy.linktracker.messaging.LinkUpdateEvent;
+import backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -36,11 +36,11 @@ public class KafkaLinkUpdateMessageHandler {
         }
     }
 
-    private LinkUpdateEvent deserialize(byte[] payload) {
+    private ProcessedLinkUpdateEvent deserialize(byte[] payload) {
         try {
-            Object decoded = kafkaAvroDeserializer.deserialize(kafkaProperties.getLinkUpdatesTopic(), payload);
-            if (decoded instanceof LinkUpdateEvent linkUpdateEvent) {
-                return linkUpdateEvent;
+            Object decoded = kafkaAvroDeserializer.deserialize(kafkaProperties.getProcessedUpdatesTopic(), payload);
+            if (decoded instanceof ProcessedLinkUpdateEvent processedLinkUpdateEvent) {
+                return processedLinkUpdateEvent;
             }
             throw new KafkaLinkUpdateDeserializationException("Unsupported event payload type: " + decoded);
         } catch (KafkaLinkUpdateDeserializationException exception) {

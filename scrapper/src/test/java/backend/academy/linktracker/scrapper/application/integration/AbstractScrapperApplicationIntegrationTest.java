@@ -202,8 +202,13 @@ abstract class AbstractScrapperApplicationIntegrationTest {
         assertThat(notificationCaptor.getAllValues())
                 .containsExactlyInAnyOrder(
                         new LinkUpdateNotification(
-                                sharedFirst.id(), sharedUrl, expectedDescription, List.of(firstChatId, secondChatId)),
-                        new LinkUpdateNotification(unique.id(), uniqueUrl, expectedDescription, List.of(thirdChatId)));
+                                sharedFirst.id(),
+                                sharedUrl,
+                                expectedDescription,
+                                "author",
+                                List.of(firstChatId, secondChatId)),
+                        new LinkUpdateNotification(
+                                unique.id(), uniqueUrl, expectedDescription, "author", List.of(thirdChatId)));
 
         assertThat(checkpointRepository.findByUrl(sharedUrl)).contains(changedTimestamp);
         assertThat(checkpointRepository.findByUrl(uniqueUrl)).contains(changedTimestamp);

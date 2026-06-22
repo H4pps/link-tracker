@@ -15,7 +15,7 @@ class KafkaLinkUpdateConsumerContractTest {
             "backend.academy.linktracker.bot.infrastructure.kafka.consumer.KafkaLinkUpdateConsumer";
     private static final String MESSAGE_HANDLER_CLASS =
             "backend.academy.linktracker.bot.infrastructure.kafka.handler.KafkaLinkUpdateMessageHandler";
-    private static final String EVENT_CLASS = "backend.academy.linktracker.messaging.LinkUpdateEvent";
+    private static final String EVENT_CLASS = "backend.academy.linktracker.messaging.ProcessedLinkUpdateEvent";
     private static final String EVENT_MAPPER_CLASS =
             "backend.academy.linktracker.bot.infrastructure.kafka.processing.LinkUpdateEventMapper";
     private static final String EVENT_VALIDATOR_CLASS =
